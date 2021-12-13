@@ -18,7 +18,7 @@ pub struct Input {
     pub ccw_rotate: bool,
 }
 
-const COOLDOWN : u32 = 5;
+const COOLDOWN : u32 = 10;
 
 pub struct Game {
     /// Holds all possible pieces and their spawn locations.
@@ -32,16 +32,40 @@ pub struct Game {
     piece_counter: usize,
     /// Indicates whether the game is still active.
     state: GameState,
-    /// Delay to control how fast the pieces fall.
-    gravity_delay: u32,
-    /// Counter to keep track of when to apply gravity.
-    gravity_cooldown_timer: u32,
+    /// This is used as part of the gravity calculation.
+    frames: usize,
+    /// The current level. This determines how fast the pieces fall.
+    level: usize,
+    /// The current score, used to determine which level has been reached.
+    score: usize,
+    /// The next score to make to get to the next level.
+    next_level_score: usize,
     /// Counter to keep track of when to allow another rotation.
     rotation_cooldown_counter: u32,
     /// Counter to keep track of when to allow another translation.
     translation_cooldown_counter: u32,
 }
 
+// 1 unit of gravity = moving one cell
+// these are the gravity constants for 60 fps
+// source: https://harddrop.com/wiki/Tetris_Worlds
+const GRAVITY : [f64; 15] = [
+    0.01667,
+    0.021017,
+    0.026977,
+    0.035356,
+    0.04693,
+    0.06361,
+    0.0879,
+    0.1236,
+    0.1775,
+    0.2598,
+    0.388,
+    0.59,
+    0.92,
+    1.46,
+    2.36,
+];
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum GameState {
     Playing,
@@ -60,8 +84,10 @@ impl Game {
             board: Board::new(),
             piece_counter: 0,
             state: GameState::Playing,
-            gravity_delay: 30,
-            gravity_cooldown_timer: 0,
+            frames: 0,
+            level: 1,
+            score: 0,
+            next_level_score: 5,
             rotation_cooldown_counter: 0,
             translation_cooldown_counter: 0,
         }
@@ -164,11 +190,24 @@ impl Game {
         // -----------------------
         //    VERTICAL MOVEMENT
         // -----------------------
-        if self.gravity_cooldown_timer == self.gravity_delay || input.down {
-            // reset the gravity countdown timer
-            self.gravity_cooldown_timer = 0;
 
-            let candidate = self.current_piece.apply_gravity();
+        self.frames += 1;
+        // THOUGHT: I could just add the gravity value to a stored value each frame, instead of
+        //          recalculating the displacement every frame. Seems more efficient.
+        let displacement = GRAVITY[self.level-1] * self.frames as f64;
+
+        if displacement.floor() > 0.0 || input.down {
+            // reset frame counter
+            self.frames = 0;
+
+            let candidate = if input.down {
+                // if the user is holding the down input, move the piece down at the drop rate
+                // for that level
+                let diff_displacement = (1.0/GRAVITY[self.level-1] + 1.0) * GRAVITY[self.level - 1];
+                self.current_piece.apply_gravity(diff_displacement as isize)
+            } else {
+                self.current_piece.apply_gravity(displacement as isize)
+            };
 
             let new_position = candidate.position;
 
@@ -180,15 +219,32 @@ impl Game {
                 let at_bottom = self.board.is_at_the_bottom(&new_position);
 
                 let lines_cleared = if collision {
-                    self.board.add_piece(&self.current_piece.position)
-                } else if at_bottom {
-                    self.board.add_piece(&new_position)
-                } else {
-                    0
-                };
+                        self.board.add_piece(&self.current_piece.position)
+                    } else if at_bottom {
+                        self.board.add_piece(&new_position)
+                    } else {
+                        0
+                    };
+
+                // update the score based on the number of lines cleared
+                if lines_cleared == 1 {
+                    self.score += 1;
+                } else if lines_cleared == 2 {
+                    self.score += 3;
+                } else if lines_cleared == 3 {
+                    self.score += 5;
+                } else if lines_cleared == 4 {
+                    self.score += 8;
+                }
 
                 if lines_cleared > 0 {
-                    println!("Cleared {} lines!", lines_cleared);
+                    println!("SCORE: {}", self.score);
+                    // do we need to go to the next level?
+                    if self.score > self.next_level_score && self.level < 15 {
+                        self.level += 1;
+                        println!("LEVEL {}!", self.level);
+                        self.next_level_score += 5 * self.level;
+                    }
                 }
 
                 if collision || at_bottom {
@@ -214,7 +270,6 @@ impl Game {
             }
         }
 
-        self.gravity_cooldown_timer += 1;
 
         // Is the game over?
         if self.board.is_board_full() {

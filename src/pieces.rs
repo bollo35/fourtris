@@ -157,8 +157,12 @@ impl Piece {
     }
 
     /// Calculate the new location of a piece if moved down by one space
-    pub fn apply_gravity(&self) -> Piece {
-        let offset = Coord { x: 0, y: -1 };
+    pub fn apply_gravity(&self, displacement: isize) -> Piece {
+        let offset = if displacement > 0 {
+            Coord { x: 0, y: -displacement }
+        } else {
+            Coord { x: 0, y: displacement }
+        };
 
         Piece {
             position: add_offset(&self.position, offset),
