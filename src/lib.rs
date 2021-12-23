@@ -1,3 +1,4 @@
+#![no_std]
 pub mod game;
 pub mod sdl2_backend;
 mod board;

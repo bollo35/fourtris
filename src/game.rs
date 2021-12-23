@@ -238,11 +238,11 @@ impl Game {
                 }
 
                 if lines_cleared > 0 {
-                    println!("SCORE: {}", self.score);
+                    // println!("SCORE: {}", self.score);
                     // do we need to go to the next level?
                     if self.score > self.next_level_score && self.level < 15 {
                         self.level += 1;
-                        println!("LEVEL {}!", self.level);
+                        // println!("LEVEL {}!", self.level);
                         self.next_level_score += 5 * self.level;
                     }
                 }
@@ -265,8 +265,9 @@ impl Game {
                 }
             } else {
                 // tetrimino is outside of the bounds, which means it is past the bottom
-                println!("I don't think you should ever see this...");
-                println!("new position: {:?}", new_position);
+                // println!("I don't think you should ever see this...");
+                // Actually, I do think this could happen at the higher levelssti
+                // println!("new position: {:?}", new_position);
             }
         }
 
@@ -301,6 +302,14 @@ impl Game {
         }
     }
 
+    pub fn score(&self) -> usize {
+        self.score
+    }
+
+    pub fn level(&self) -> usize {
+        self.level
+    }
+    /*
     /// Function for printing the board to the console.
     /// Used for debugging.
     pub fn print_board(&self) {
@@ -325,4 +334,5 @@ impl Game {
         }
         println!();
     }
+    */
 }

@@ -1,4 +1,4 @@
-use std::ops;
+use core::ops;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Coord {

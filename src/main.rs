@@ -30,6 +30,8 @@ fn main() {
 
     let mut input : Input = Default::default();
 
+    let mut level = game.level();
+
     'playing: loop {
         // clear the screen to black
         canvas.set_draw_color(Color::RGB(0, 0, 0));
@@ -68,9 +70,16 @@ fn main() {
 
         // run the game loop
         let state = game.run_loop(&input);
+        if game.level() != level {
+            level = game.level();
+            println!("Level {}!", level);
+        }
+
         match state {
             GameState::GameOver =>  {
                 println!("GAME OVER MAN!");
+                println!("You made it to level {}", game.level());
+                println!("Final score: {}", game.score());
                 break 'playing;
             },
             _ => {},
