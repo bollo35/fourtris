@@ -1,7 +1,6 @@
 #![no_std]
 pub mod game;
-pub mod sdl2_backend;
+pub mod game_renderer;
 mod board;
 mod coord;
-mod game_renderer;
 mod pieces;

@@ -1,6 +1,7 @@
 use crate::board::Board;
 use crate::pieces::{Piece, PIECE_TYPES};
-use crate::game_renderer::*;
+use crate::game_renderer::TetriminoType;
+use crate::game_renderer::GameRenderer;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
