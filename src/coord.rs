@@ -1,6 +1,6 @@
 use core::ops;
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct Coord {
     pub x: isize,
     pub y: isize,

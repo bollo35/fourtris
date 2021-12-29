@@ -8,7 +8,6 @@ use sdl2::rect::Rect;
 
 use tetris::game::{Game, GameState, Input};
 use tetris::game_renderer::{GameRenderer, TetriminoType};
-// use tetris::sdl2_backend::Sdl2Backend;
 
 use std::time::Duration;
 
@@ -35,6 +34,9 @@ impl GameRenderer for Sdl2Backend<'_> {
             },
             TetriminoType::SettledTetrimino => {
                 self.canvas.set_draw_color(Color::RGB(127, 127, 127));
+            },
+            TetriminoType::EmptySpace => {
+                self.canvas.set_draw_color(Color::RGB(0, 0, 0));
             },
         };
 

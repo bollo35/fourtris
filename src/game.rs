@@ -1,9 +1,12 @@
 use crate::board::Board;
 use crate::pieces::{Piece, PIECE_TYPES};
+use crate::coord::Coord;
 use crate::game_renderer::TetriminoType;
 use crate::game_renderer::GameRenderer;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+
+struct RenderInfo {
+    previous_piece_pos: [Coord; 4],
+}
 
 #[derive(Default)]
 pub struct Input {
@@ -45,6 +48,8 @@ pub struct Game {
     rotation_cooldown_counter: u32,
     /// Counter to keep track of when to allow another translation.
     translation_cooldown_counter: u32,
+    /// Optional rendering info
+    render_info: Option<RenderInfo>,
 }
 
 // 1 unit of gravity = moving one cell
@@ -75,9 +80,11 @@ pub enum GameState {
 
 impl Game {
     pub fn new() -> Game {
-        let mut rng = thread_rng();
         let mut tets = PIECE_TYPES;
+        /*
+        let mut rng = thread_rng();
         tets.shuffle(&mut rng);
+        */
 
         Game {
             pieces: tets,
@@ -91,6 +98,7 @@ impl Game {
             next_level_score: 5,
             rotation_cooldown_counter: 0,
             translation_cooldown_counter: 0,
+            render_info: None,
         }
     }
 
@@ -105,6 +113,9 @@ impl Game {
         if self.translation_cooldown_counter > 0 {
             self.translation_cooldown_counter -= 1;
         }
+
+        // save a copy of the piece's current position
+        let previous_piece_pos = self.current_piece.position.clone();
 
         if self.translation_cooldown_counter ==  0 { 
 
@@ -197,7 +208,7 @@ impl Game {
         //          recalculating the displacement every frame. Seems more efficient.
         let displacement = GRAVITY[self.level-1] * self.frames as f64;
 
-        if displacement.floor() > 0.0 || input.down {
+        if (displacement as i32) > 0 || input.down {
             // reset frame counter
             self.frames = 0;
 
@@ -253,9 +264,11 @@ impl Game {
                     self.piece_counter += 1;
                     // if all of the pieces have been used, shuffle the pieces
                     if self.piece_counter == self.pieces.len() {
+/*
                         let mut rng = thread_rng();
                         // shuffle the pieces
                         self.pieces.shuffle(&mut rng);
+*/
                         // reset the counter
                         self.piece_counter = 0;
                     }
@@ -272,6 +285,19 @@ impl Game {
             }
         }
 
+        let current_piece_pos = self.current_piece.position.clone();
+        let piece_has_moved = current_piece_pos.iter().
+                                 zip(previous_piece_pos.iter()).
+                                 any(|(&a, &b)| a != b);
+
+        self.render_info = 
+            if piece_has_moved {
+                Some( RenderInfo {
+                    previous_piece_pos,
+                })
+            } else {
+                None
+            };
 
         // Is the game over?
         if self.board.is_board_full() {
@@ -295,6 +321,14 @@ impl Game {
             }
         }
 
+        if let Some(render_info) = &self.render_info {
+            // erase the previous location
+            for c in render_info.previous_piece_pos.iter() {
+                let x = c.x;
+                let y = 21 - c.y;
+                renderer.draw_block(x as i32, y as i32, TetriminoType::EmptySpace);
+            }
+        }
         // draw the active (falling) piece
         for c in self.current_piece.position.iter() {
             let x = c.x;

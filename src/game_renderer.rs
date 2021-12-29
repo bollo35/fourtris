@@ -3,6 +3,7 @@
 pub enum TetriminoType {
     LiveTetrimino,
     SettledTetrimino,
+    EmptySpace
 }
 
 /// Define a trait for drawing the game state.
