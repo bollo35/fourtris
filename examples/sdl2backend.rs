@@ -6,11 +6,31 @@ use sdl2::video::Window;
 use sdl2::render::Canvas;
 use sdl2::rect::Rect;
 
+extern crate rand;
+use rand::Rng;
 use tetris::game::{Game, GameState, Input};
 use tetris::game_renderer::{GameRenderer, TetriminoType};
 
 use std::time::Duration;
 
+pub struct Randy {
+    rng: rand::rngs::ThreadRng
+}
+
+impl Randy {
+    pub fn new() -> Randy {
+        let rng = rand::thread_rng();
+        Randy {
+            rng
+        }
+    }
+}
+
+impl tetris::rng::Rng for Randy {
+    fn next(&mut self) -> usize {
+        self.rng.gen_range(0..7)
+    }
+}
 pub struct Sdl2Backend<'a> {
     canvas: &'a mut Canvas<Window>,
     block_width: u32,
@@ -65,19 +85,20 @@ fn main() {
     canvas.clear();
     canvas.present();
 
+    let mut randy = Randy::new();
+
     let mut event_pump = sdl_context.event_pump().unwrap();
 
-    let mut game = Game::new();
+    let mut game = Game::new(&mut randy);
 
     let mut input : Input = Default::default();
 
     let mut level = game.level();
 
-    'playing: loop {
         // clear the screen to black
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
-
+    'playing: loop {
         // handle events
         for event in event_pump.poll_iter() {
             match event {
@@ -110,7 +131,7 @@ fn main() {
         }
 
         // run the game loop
-        let state = game.run_loop(&input);
+        let state = game.run_loop(&input, &mut randy);
         if game.level() != level {
             level = game.level();
             println!("Level {}!", level);

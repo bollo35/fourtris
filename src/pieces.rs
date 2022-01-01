@@ -24,7 +24,7 @@ use crate::coord::Coord;
 /// [ ][ ][o][ ]
 /// [ ][ ][o][ ]
 /// [ ][ ][o][ ]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Orientation {
     HorizontalDown = 0,
     VerticalLeft   = 1,
@@ -33,7 +33,7 @@ pub enum Orientation {
 }
 
 /// Represents the 7 pieces.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PieceType {
     IType(Orientation), 
     OType,

@@ -3,9 +3,13 @@ use crate::pieces::{Piece, PIECE_TYPES};
 use crate::coord::Coord;
 use crate::game_renderer::TetriminoType;
 use crate::game_renderer::GameRenderer;
+use crate::rng::Rng;
 
+#[derive(Default)]
 struct RenderInfo {
-    previous_piece_pos: [Coord; 4],
+    previous_piece_pos: Option<[Coord; 4]>,
+    newly_settled_pieces: Option<[Coord; 4]>,
+    lines_cleared: bool,
 }
 
 #[derive(Default)]
@@ -48,8 +52,8 @@ pub struct Game {
     rotation_cooldown_counter: u32,
     /// Counter to keep track of when to allow another translation.
     translation_cooldown_counter: u32,
-    /// Optional rendering info
-    render_info: Option<RenderInfo>,
+    /// Rendering info
+    render_info: RenderInfo,
 }
 
 // 1 unit of gravity = moving one cell
@@ -79,12 +83,18 @@ pub enum GameState {
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn new(rng: &mut dyn Rng) -> Game {
         let mut tets = PIECE_TYPES;
-        /*
-        let mut rng = thread_rng();
-        tets.shuffle(&mut rng);
-        */
+        // do a knuth shuffle to permuate the pieces
+        for i in 0..tets.len() {
+            let index = rng.next();
+            if index != i {
+                // swap i and index
+                let temp = tets[i];
+                tets[i] = tets[index];
+                tets[index] = temp;
+            }
+        }
 
         Game {
             pieces: tets,
@@ -98,24 +108,28 @@ impl Game {
             next_level_score: 5,
             rotation_cooldown_counter: 0,
             translation_cooldown_counter: 0,
-            render_info: None,
+            render_info: Default::default(),
         }
     }
 
-    pub fn run_loop(&mut self, input: &Input) -> GameState {
+    pub fn run_loop(&mut self, input: &Input, rng: &mut dyn Rng) -> GameState {
         match self.state {
             GameState::GameOver => return self.state,
             _ => {},
         }
+
+        // reset render info
+        self.render_info = Default::default();
+
+        // save a copy of the piece's current position
+        let previous_piece = self.current_piece.clone();
+
         // -------------------------
         //    HORIZONTAL MOVEMENT
         // -------------------------
         if self.translation_cooldown_counter > 0 {
             self.translation_cooldown_counter -= 1;
         }
-
-        // save a copy of the piece's current position
-        let previous_piece_pos = self.current_piece.position.clone();
 
         if self.translation_cooldown_counter ==  0 { 
 
@@ -231,8 +245,12 @@ impl Game {
                 let at_bottom = self.board.is_at_the_bottom(&new_position);
 
                 let lines_cleared = if collision {
+                        // take note of the newly settled pieces for rendering
+                        self.render_info.newly_settled_pieces = Some(self.current_piece.position.clone());
                         self.board.add_piece(&self.current_piece.position)
                     } else if at_bottom {
+                        // take note of the newly settled pieces for rendering
+                        self.render_info.newly_settled_pieces = Some(new_position);
                         self.board.add_piece(&new_position)
                     } else {
                         0
@@ -259,11 +277,24 @@ impl Game {
                     }
                 }
 
+                // set render info
+                self.render_info.lines_cleared = lines_cleared > 0;
+
                 if collision || at_bottom {
                     // move to the next piece
                     self.piece_counter += 1;
                     // if all of the pieces have been used, shuffle the pieces
                     if self.piece_counter == self.pieces.len() {
+                        // do a knuth shuffle to permuate the pieces
+                        for i in 0..self.pieces.len() {
+                            let index = rng.next();
+                            if index != i {
+                                // swap i and index
+                                let temp = self.pieces[i];
+                                self.pieces[i] = self.pieces[index];
+                                self.pieces[index] = temp;
+                            }
+                        }
 /*
                         let mut rng = thread_rng();
                         // shuffle the pieces
@@ -280,21 +311,17 @@ impl Game {
             } else {
                 // tetrimino is outside of the bounds, which means it is past the bottom
                 // println!("I don't think you should ever see this...");
-                // Actually, I do think this could happen at the higher levelssti
+                // Actually, I do think this could happen at the higher levels
                 // println!("new position: {:?}", new_position);
             }
         }
 
-        let current_piece_pos = self.current_piece.position.clone();
-        let piece_has_moved = current_piece_pos.iter().
-                                 zip(previous_piece_pos.iter()).
+        let piece_has_moved = self.current_piece.position.iter().
+                                 zip(previous_piece.position.iter()).
                                  any(|(&a, &b)| a != b);
-
-        self.render_info = 
+        self.render_info.previous_piece_pos = 
             if piece_has_moved {
-                Some( RenderInfo {
-                    previous_piece_pos,
-                })
+                Some(previous_piece.position.clone())
             } else {
                 None
             };
@@ -311,6 +338,7 @@ impl Game {
 
     /// Draw the game state using the provided renderer.
     pub fn draw(&self, renderer: &mut dyn GameRenderer) {
+        /*
         // draw all settled pieces
         for y in 0..22 {
             for x in 0..10 {
@@ -320,20 +348,46 @@ impl Game {
                 }
             }
         }
+        */
 
-        if let Some(render_info) = &self.render_info {
-            // erase the previous location
-            for c in render_info.previous_piece_pos.iter() {
+        if self.render_info.lines_cleared {
+            // redraw the board
+            for y in 0..22 {
+                for x in 0..10 {
+                    let real_y = 21 - y;
+                    if self.board.is_not_vacant_at(x as usize, y as usize) {
+                        renderer.draw_block(x as i32, real_y as i32, TetriminoType::SettledTetrimino);
+                    } else {
+                        renderer.draw_block(x as i32, real_y as i32, TetriminoType::EmptySpace);
+                    }
+                }
+            }
+        } else {
+            // do all erasing first, in case something gets drawn over it
+            if let Some(previous_pos) = &self.render_info.previous_piece_pos {
+                // erase the previous location
+                for c in previous_pos.iter() {
+                    let x = c.x;
+                    let y = 21 - c.y;
+                    renderer.draw_block(x as i32, y as i32, TetriminoType::EmptySpace);
+                }
+            }
+
+            // draw the active (falling) piece
+            for c in self.current_piece.position.iter() {
                 let x = c.x;
                 let y = 21 - c.y;
-                renderer.draw_block(x as i32, y as i32, TetriminoType::EmptySpace);
+                renderer.draw_block(x as i32, y as i32, TetriminoType::LiveTetrimino);
             }
-        }
-        // draw the active (falling) piece
-        for c in self.current_piece.position.iter() {
-            let x = c.x;
-            let y = 21 - c.y;
-            renderer.draw_block(x as i32, y as i32, TetriminoType::LiveTetrimino);
+
+            // draw any newly settled pieces
+            if let Some (newly_settled_pieces) = &self.render_info.newly_settled_pieces {
+                for c in newly_settled_pieces.iter() {
+                    let x = c.x;
+                    let y = 21 - c.y;
+                    renderer.draw_block(x as i32, y as i32, TetriminoType::SettledTetrimino);
+                }
+            }
         }
     }
 
