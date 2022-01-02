@@ -1,9 +1,12 @@
 use crate::coord::Coord;
+use crate::pieces::Piece;
+use crate::pieces::PieceType;
+use crate::game_renderer::TetriminoType;
 
 const BOARD_WIDTH: usize =  10;
 const BOARD_HEIGHT: usize =  22;
 pub struct Board {
-    content: [[isize; BOARD_WIDTH]; BOARD_HEIGHT],
+    content: [[TetriminoType; BOARD_WIDTH]; BOARD_HEIGHT],
 }
 
 impl Board {
@@ -15,6 +18,10 @@ impl Board {
         }
     }
 
+    pub fn tetrimino_type_at(&self, x: usize, y: usize) -> TetriminoType {
+        self.content[y][x]
+    }
+
     pub fn is_tetrimino_within_bounds(&self, coords: &[Coord; 4]) -> bool {
         coords.iter().all(|&c| 0 <= c.x && c.x < BOARD_WIDTH as isize && 
                               0 <= c.y && c.y < BOARD_HEIGHT as isize)
@@ -23,7 +30,7 @@ impl Board {
     pub fn is_not_vacant_at(&self, x: usize, y: usize) -> bool {
         (x <= BOARD_WIDTH) &&
         (y <= BOARD_HEIGHT) &&
-        self.content[y][x] == 1
+        self.content[y][x] != TetriminoType::EmptySpace
     }
 
     // THIS FUNCTION SHOULD ONLY BE CALLED AFTER VERIFYING THAT
@@ -33,7 +40,7 @@ impl Board {
         // any of the pieces already settled on the board?
         // NOTE: the cast only holds if the coordinates have already been
         //       verified to be within the borders of the game board
-        coords.iter().any(|&c| self.content[c.y as usize][c.x as usize] == 1)
+        coords.iter().any(|&c| self.content[c.y as usize][c.x as usize] != TetriminoType::EmptySpace)
     }
 
     pub fn is_at_the_bottom(&self, coords: &[Coord; 4]) -> bool {
@@ -42,18 +49,29 @@ impl Board {
         coords.iter().any(|&c| c.y == 0) && !coords.iter().any(|&c| c.y < 0)
     }
 
-    pub fn add_piece(&mut self, coords: &[Coord; 4]) -> u32 {
+    pub fn add_piece(&mut self, piece: &Piece) -> u32 {
+        let tet_type = 
+            match piece.piece_type {
+                PieceType::IType(_) => TetriminoType::I,
+                PieceType::OType    => TetriminoType::O,
+                PieceType::JType    => TetriminoType::J,
+                PieceType::LType    => TetriminoType::L,
+                PieceType::SType    => TetriminoType::S,
+                PieceType::ZType    => TetriminoType::Z,
+                PieceType::TType    => TetriminoType::T,
+            };
+
         // add pieces to the board
-        for c in coords.iter() {
+        for c in piece.position.iter() {
             // NOTE: assumption is that these have been verified to be within the board bounds
-            self.content[c.y as usize][c.x as usize] = 1;
+            self.content[c.y as usize][c.x as usize] = tet_type;
         }
 
         // determine y coordinate range
         // the y range determines where to check for completed lines
         let mut y_min : isize =  400;
         let mut y_max : isize = -400;
-        for c in coords.iter() {
+        for c in piece.position.iter() {
             if c.y < y_min {
                 y_min = c.y;
             }
@@ -63,23 +81,53 @@ impl Board {
             }
         }
 
+        // this will hold the indices of lines to be removed
+        // at most 4 lines will be removed
+        // -1 will indicate there are no more lines to remove
+        let mut completed_lines : [isize; 4] = [-1, -1, -1, -1];
+        let mut idx = 0;
         let mut lines_cleared = 0;
         // check for completed lines and mark all entries with a 2
         for y in y_min..=y_max {
             // save all indices where there isn't a line to clear
             // NOTE: y must be within the board bounds
-            let is_completed_line = self.content[y as usize].iter().all(|&val| val == 1);
+            let is_completed_line = self.content[y as usize].iter().all(|&val| val != TetriminoType::EmptySpace);
 
             // mark line for deletion if it's a completed line
             if is_completed_line {
-                for val in self.content[y as usize].iter_mut() {
-                    *val = 2;
-                }
+                completed_lines[idx] = y;
+                idx += 1;
                 lines_cleared += 1;
             }
         }
 
         // clear completed lines.
+        let mut cleared_so_far = 0;
+        for y in completed_lines.iter() {
+            // exit if there are no more lines to clear
+            // (indicated by -1)
+            if *y == -1 {
+                break;
+            }
+
+            // adjust the y coordinate for the lines already removed
+            let real_y = *y - cleared_so_far; 
+            cleared_so_far += 1;
+            // shift all the grid rows above this line down
+            // the last grid row won't have another row to copy from, so ignore that row until
+            // the end
+            for i in real_y..(BOARD_HEIGHT as isize - 1) {
+                for x in 0..BOARD_WIDTH {
+                    self.content[i as usize][x] = self.content[i as usize + 1][x];
+                }
+            }
+
+            // set the upper most grid row to all zeroes, indicating nothing is there
+            for x in self.content[BOARD_HEIGHT-1].iter_mut() {
+                *x = TetriminoType::EmptySpace;
+            }
+        }
+        /*
         // this is done naively.
         // Start checking for completed lines at y_min.
         // Each time we find a completed line, replace that line with the
@@ -111,11 +159,12 @@ impl Board {
             }
             line_counter -= 1;
         }
+        */
 
         lines_cleared
     }
 
     pub fn is_board_full(&self) -> bool {
-        self.content[BOARD_HEIGHT-3].iter().any(|&c| c == 1)
+        self.content[BOARD_HEIGHT-3].iter().any(|&c| c != TetriminoType::EmptySpace)
     }
 }

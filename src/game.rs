@@ -1,5 +1,5 @@
 use crate::board::Board;
-use crate::pieces::{Piece, PIECE_TYPES};
+use crate::pieces::{Piece, PieceType, PIECE_TYPES};
 use crate::coord::Coord;
 use crate::game_renderer::TetriminoType;
 use crate::game_renderer::GameRenderer;
@@ -247,11 +247,11 @@ impl Game {
                 let lines_cleared = if collision {
                         // take note of the newly settled pieces for rendering
                         self.render_info.newly_settled_pieces = Some(self.current_piece.position.clone());
-                        self.board.add_piece(&self.current_piece.position)
+                        self.board.add_piece(&self.current_piece)
                     } else if at_bottom {
                         // take note of the newly settled pieces for rendering
                         self.render_info.newly_settled_pieces = Some(new_position);
-                        self.board.add_piece(&new_position)
+                        self.board.add_piece(&candidate)
                     } else {
                         0
                     };
@@ -295,11 +295,6 @@ impl Game {
                                 self.pieces[index] = temp;
                             }
                         }
-/*
-                        let mut rng = thread_rng();
-                        // shuffle the pieces
-                        self.pieces.shuffle(&mut rng);
-*/
                         // reset the counter
                         self.piece_counter = 0;
                     }
@@ -355,11 +350,7 @@ impl Game {
             for y in 0..22 {
                 for x in 0..10 {
                     let real_y = 21 - y;
-                    if self.board.is_not_vacant_at(x as usize, y as usize) {
-                        renderer.draw_block(x as i32, real_y as i32, TetriminoType::SettledTetrimino);
-                    } else {
-                        renderer.draw_block(x as i32, real_y as i32, TetriminoType::EmptySpace);
-                    }
+                    renderer.draw_block(x as i32, real_y as i32, self.board.tetrimino_type_at(x, y));
                 }
             }
         } else {
@@ -373,11 +364,21 @@ impl Game {
                 }
             }
 
+            let tet_type = 
+                match self.current_piece.piece_type {
+                    PieceType::IType(_) => TetriminoType::I,
+                    PieceType::OType    => TetriminoType::O,
+                    PieceType::JType    => TetriminoType::J,
+                    PieceType::LType    => TetriminoType::L,
+                    PieceType::SType    => TetriminoType::S,
+                    PieceType::ZType    => TetriminoType::Z,
+                    PieceType::TType    => TetriminoType::T,
+                };
             // draw the active (falling) piece
             for c in self.current_piece.position.iter() {
                 let x = c.x;
                 let y = 21 - c.y;
-                renderer.draw_block(x as i32, y as i32, TetriminoType::LiveTetrimino);
+                renderer.draw_block(x as i32, y as i32, tet_type);
             }
 
             // draw any newly settled pieces
@@ -385,7 +386,7 @@ impl Game {
                 for c in newly_settled_pieces.iter() {
                     let x = c.x;
                     let y = 21 - c.y;
-                    renderer.draw_block(x as i32, y as i32, TetriminoType::SettledTetrimino);
+                    renderer.draw_block(x as i32, y as i32, self.board.tetrimino_type_at(c.x as usize, c.y as usize));
                 }
             }
         }

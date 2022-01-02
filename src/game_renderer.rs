@@ -1,9 +1,18 @@
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 /// Defines the different Tetrimino states for use by the renderer.
 pub enum TetriminoType {
-    LiveTetrimino,
-    SettledTetrimino,
-    EmptySpace
+    EmptySpace,
+    I,
+    O,
+    J,
+    L,
+    S,
+    Z,
+    T,
+}
+
+impl Default for TetriminoType {
+    fn default() -> Self { TetriminoType::EmptySpace }
 }
 
 /// Define a trait for drawing the game state.

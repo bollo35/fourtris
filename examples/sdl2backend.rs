@@ -49,11 +49,26 @@ impl Sdl2Backend<'_> {
 impl GameRenderer for Sdl2Backend<'_> {
     fn draw_block(&mut self, x: i32, y: i32, tetrimino_type: TetriminoType) {
         match tetrimino_type {
-            TetriminoType::LiveTetrimino => {
+            TetriminoType::I => {
                 self.canvas.set_draw_color(Color::RGB(0, 0, 200));
             },
-            TetriminoType::SettledTetrimino => {
-                self.canvas.set_draw_color(Color::RGB(127, 127, 127));
+            TetriminoType::O => {
+                self.canvas.set_draw_color(Color::RGB(0, 200, 0));
+            },
+            TetriminoType::J => {
+                self.canvas.set_draw_color(Color::RGB(0, 200, 200));
+            },
+            TetriminoType::L => {
+                self.canvas.set_draw_color(Color::RGB(200, 0, 0));
+            },
+            TetriminoType::S => {
+                self.canvas.set_draw_color(Color::RGB(200, 0, 200));
+            },
+            TetriminoType::Z => {
+                self.canvas.set_draw_color(Color::RGB(200, 200, 0));
+            },
+            TetriminoType::T => {
+                self.canvas.set_draw_color(Color::RGB(100, 200, 100));
             },
             TetriminoType::EmptySpace => {
                 self.canvas.set_draw_color(Color::RGB(0, 0, 0));
