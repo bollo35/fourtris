@@ -3,6 +3,7 @@ use crate::pieces::{Piece, PieceType, PIECE_TYPES};
 use crate::coord::Coord;
 use crate::game_renderer::TetriminoType;
 use crate::game_renderer::GameRenderer;
+use crate::game_renderer::RendererType;
 use crate::rng::Rng;
 
 #[derive(Default)]
@@ -331,19 +332,54 @@ impl Game {
     }
 
     /// Draw the game state using the provided renderer.
+    // TODO: Can this function be configured at compile time instead of run time?
+    //       i.e. if it uses a PartialRedraw renderer, can we compile ONLY that code?
+    //       more importantly, can this be done without creating two different functions?
     pub fn draw(&self, renderer: &mut dyn GameRenderer) {
-        /*
-        // draw all settled pieces
-        for y in 0..22 {
-            for x in 0..10 {
-                let real_y = 21 - y;
-                if self.board.is_not_vacant_at(x as usize, y as usize) {
-                    renderer.draw_block(x as i32, real_y as i32, TetriminoType::SettledTetrimino);
-                }
-            }
-        }
-        */
+        let renderer_type = renderer.renderer_type();
+        match renderer_type {
+            RendererType::PartialRedraw => {
+                if self.render_info.lines_cleared {
+                    // redraw the board
+                    for y in 0..22 {
+                        for x in 0..10 {
+                            let real_y = 21 - y;
+                            renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
+                        }
+                    }
+                } else {
+                    // do all erasing first, in case something gets drawn over it
+                    if let Some(previous_pos) = &self.render_info.previous_piece_pos {
+                        // erase the previous location
+                        for c in previous_pos.iter() {
+                            let x = c.x;
+                            let y = 21 - c.y;
+                            renderer.draw_block(x as u8, y as u8, TetriminoType::EmptySpace);
+                        }
+                    }
 
+                    // draw any newly settled pieces
+                    if let Some (newly_settled_pieces) = &self.render_info.newly_settled_pieces {
+                        for c in newly_settled_pieces.iter() {
+                            let x = c.x;
+                            let y = 21 - c.y;
+                            renderer.draw_block(x as u8, y as u8, self.board.tetrimino_type_at(c.x as u8, c.y as u8));
+                        }
+                    }
+                }
+            },
+            RendererType::FullRedraw => {
+                // redraw the board
+                for y in 0..22 {
+                    for x in 0..10 {
+                        let real_y = 21 - y;
+                        renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
+                    }
+                }
+            },
+        };
+
+        /*
         if self.render_info.lines_cleared {
             // redraw the board
             for y in 0..22 {
@@ -353,41 +389,39 @@ impl Game {
                 }
             }
         } else {
-            // do all erasing first, in case something gets drawn over it
-            if let Some(previous_pos) = &self.render_info.previous_piece_pos {
-                // erase the previous location
-                for c in previous_pos.iter() {
-                    let x = c.x;
-                    let y = 21 - c.y;
-                    renderer.draw_block(x as u8, y as u8, TetriminoType::EmptySpace);
-                }
-            }
+            let renderer_type = renderer.renderer_type();
+            match renderer_type {
+                RendererType::PartialRedraw => {
+                },
+                RendererType::FullRedraw => {
+                    // redraw the board
+                    for y in 0..22 {
+                        for x in 0..10 {
+                            let real_y = 21 - y;
+                            renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
+                        }
+                    }
+                },
+            };
+        }
+        */
 
-            let tet_type = 
-                match self.current_piece.piece_type {
-                    PieceType::IType(_) => TetriminoType::I,
-                    PieceType::OType    => TetriminoType::O,
-                    PieceType::JType    => TetriminoType::J,
-                    PieceType::LType    => TetriminoType::L,
-                    PieceType::SType    => TetriminoType::S,
-                    PieceType::ZType    => TetriminoType::Z,
-                    PieceType::TType    => TetriminoType::T,
-                };
-            // draw the active (falling) piece
-            for c in self.current_piece.position.iter() {
-                let x = c.x;
-                let y = 21 - c.y;
-                renderer.draw_block(x as u8, y as u8, tet_type);
-            }
-
-            // draw any newly settled pieces
-            if let Some (newly_settled_pieces) = &self.render_info.newly_settled_pieces {
-                for c in newly_settled_pieces.iter() {
-                    let x = c.x;
-                    let y = 21 - c.y;
-                    renderer.draw_block(x as u8, y as u8, self.board.tetrimino_type_at(c.x as u8, c.y as u8));
-                }
-            }
+        // always draw the current piece
+        let tet_type =
+            match self.current_piece.piece_type {
+                PieceType::IType(_) => TetriminoType::I,
+                PieceType::OType    => TetriminoType::O,
+                PieceType::JType    => TetriminoType::J,
+                PieceType::LType    => TetriminoType::L,
+                PieceType::SType    => TetriminoType::S,
+                PieceType::ZType    => TetriminoType::Z,
+                PieceType::TType    => TetriminoType::T,
+            };
+        // draw the active (falling) piece
+        for c in self.current_piece.position.iter() {
+            let x = c.x;
+            let y = 21 - c.y;
+            renderer.draw_block(x as u8, y as u8, tet_type);
         }
     }
 

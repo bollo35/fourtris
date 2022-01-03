@@ -9,7 +9,7 @@ use sdl2::rect::Rect;
 extern crate rand;
 use rand::Rng;
 use tetris::game::{Game, GameState, Input};
-use tetris::game_renderer::{GameRenderer, TetriminoType};
+use tetris::game_renderer::{GameRenderer, RendererType, TetriminoType};
 
 use std::time::Duration;
 
@@ -38,10 +38,9 @@ pub struct Sdl2Backend<'a> {
 
 impl Sdl2Backend<'_> {
     pub fn new(canvas: &mut Canvas<Window>, block_width: u32) -> Sdl2Backend {
-
         Sdl2Backend {
             canvas,
-            block_width
+            block_width,
         }
     }
 }
@@ -82,6 +81,10 @@ impl GameRenderer for Sdl2Backend<'_> {
 
         self.canvas.fill_rect(rect);
     }
+
+    fn renderer_type(&self) -> RendererType {
+        RendererType::FullRedraw
+    }
 }
 
 fn main() {
@@ -110,9 +113,6 @@ fn main() {
 
     let mut level = game.level();
 
-        // clear the screen to black
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
     'playing: loop {
         // handle events
         for event in event_pump.poll_iter() {
@@ -164,6 +164,10 @@ fn main() {
 
         // create a scope so I can borrow mutably
         {
+            // clear the screen to black
+            canvas.set_draw_color(Color::RGB(0, 0, 0));
+            canvas.clear();
+
             let mut backend = Sdl2Backend::new(&mut canvas, block_width);
             game.draw(&mut backend);
         }

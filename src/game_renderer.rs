@@ -15,8 +15,14 @@ impl Default for TetriminoType {
     fn default() -> Self { TetriminoType::EmptySpace }
 }
 
+pub enum RendererType {
+    PartialRedraw,
+    FullRedraw
+}
+
 /// Define a trait for drawing the game state.
 /// This allows the use of multiple backends.
 pub trait GameRenderer {
     fn draw_block(&mut self, x: u8, y: u8, piece_type: TetriminoType);
+    fn renderer_type(&self) -> RendererType;
 }
