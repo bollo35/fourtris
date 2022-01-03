@@ -379,33 +379,6 @@ impl Game {
             },
         };
 
-        /*
-        if self.render_info.lines_cleared {
-            // redraw the board
-            for y in 0..22 {
-                for x in 0..10 {
-                    let real_y = 21 - y;
-                    renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
-                }
-            }
-        } else {
-            let renderer_type = renderer.renderer_type();
-            match renderer_type {
-                RendererType::PartialRedraw => {
-                },
-                RendererType::FullRedraw => {
-                    // redraw the board
-                    for y in 0..22 {
-                        for x in 0..10 {
-                            let real_y = 21 - y;
-                            renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
-                        }
-                    }
-                },
-            };
-        }
-        */
-
         // always draw the current piece
         let tet_type =
             match self.current_piece.piece_type {
@@ -432,30 +405,4 @@ impl Game {
     pub fn level(&self) -> u8 {
         self.level as u8
     }
-    /*
-    /// Function for printing the board to the console.
-    /// Used for debugging.
-    pub fn print_board(&self) {
-        for y in 0..22 {
-            print!("{:2}", 21 - y);
-            for x in 0..10 {
-                let real_y = 21 - y;
-                if self.current_piece.position.iter().any(|c| c.x == x && c.y == real_y) {
-                    print!("[o]");
-                } else if self.board.is_not_vacant_at(x as usize, real_y as usize) {
-                    print!("[x]");
-                } else {
-                    print!("[ ]");
-                }
-            }
-            println!();
-        }
-
-        print!("  ");
-        for x in 0..10 {
-            print!("={}=", x);
-        }
-        println!();
-    }
-    */
 }
