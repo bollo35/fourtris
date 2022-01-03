@@ -3,8 +3,8 @@ use crate::pieces::Piece;
 use crate::pieces::PieceType;
 use crate::game_renderer::TetriminoType;
 
-const BOARD_WIDTH: usize =  10;
-const BOARD_HEIGHT: usize =  22;
+const BOARD_WIDTH: usize  =  10;
+const BOARD_HEIGHT: usize  =  22;
 pub struct Board {
     content: [[TetriminoType; BOARD_WIDTH]; BOARD_HEIGHT],
 }
@@ -18,19 +18,19 @@ impl Board {
         }
     }
 
-    pub fn tetrimino_type_at(&self, x: usize, y: usize) -> TetriminoType {
-        self.content[y][x]
+    pub fn tetrimino_type_at(&self, x: u8, y: u8) -> TetriminoType {
+        self.content[y as usize][x as usize]
     }
 
     pub fn is_tetrimino_within_bounds(&self, coords: &[Coord; 4]) -> bool {
-        coords.iter().all(|&c| 0 <= c.x && c.x < BOARD_WIDTH as isize && 
-                              0 <= c.y && c.y < BOARD_HEIGHT as isize)
+        coords.iter().all(|&c| 0 <= c.x && c.x < BOARD_WIDTH as i32 && 
+                               0 <= c.y && c.y < BOARD_HEIGHT as i32)
     }
 
-    pub fn is_not_vacant_at(&self, x: usize, y: usize) -> bool {
-        (x <= BOARD_WIDTH) &&
-        (y <= BOARD_HEIGHT) &&
-        self.content[y][x] != TetriminoType::EmptySpace
+    pub fn is_not_vacant_at(&self, x: u8, y: u8) -> bool {
+        (x <= BOARD_WIDTH as u8) &&
+        (y <= BOARD_HEIGHT as u8) &&
+        self.content[y as usize][x as usize] != TetriminoType::EmptySpace
     }
 
     // THIS FUNCTION SHOULD ONLY BE CALLED AFTER VERIFYING THAT
@@ -69,8 +69,8 @@ impl Board {
 
         // determine y coordinate range
         // the y range determines where to check for completed lines
-        let mut y_min : isize =  400;
-        let mut y_max : isize = -400;
+        let mut y_min : i32 =  400;
+        let mut y_max : i32 = -400;
         for c in piece.position.iter() {
             if c.y < y_min {
                 y_min = c.y;
@@ -84,7 +84,7 @@ impl Board {
         // this will hold the indices of lines to be removed
         // at most 4 lines will be removed
         // -1 will indicate there are no more lines to remove
-        let mut completed_lines : [isize; 4] = [-1, -1, -1, -1];
+        let mut completed_lines : [i32; 4] = [-1, -1, -1, -1];
         let mut idx = 0;
         let mut lines_cleared = 0;
         // check for completed lines and mark all entries with a 2
@@ -116,7 +116,7 @@ impl Board {
             // shift all the grid rows above this line down
             // the last grid row won't have another row to copy from, so ignore that row until
             // the end
-            for i in real_y..(BOARD_HEIGHT as isize - 1) {
+            for i in real_y..(BOARD_HEIGHT as i32 - 1) {
                 for x in 0..BOARD_WIDTH {
                     self.content[i as usize][x] = self.content[i as usize + 1][x];
                 }
@@ -127,44 +127,11 @@ impl Board {
                 *x = TetriminoType::EmptySpace;
             }
         }
-        /*
-        // this is done naively.
-        // Start checking for completed lines at y_min.
-        // Each time we find a completed line, replace that line with the
-        // contents of the grid row above it and shift the rest of the grid
-        // rows accordingly.
-        // Also, set the top row of the grid to empty.
-        let mut y = y_min;
-        // decrement each time we test a line in the expected
-        // range of where the new tetrimino landed
-        let mut line_counter = y_max - y_min + 1;
-        while line_counter > 0 {
-            let to_delete = self.content[y as usize][0] == 2;
-            if to_delete {
-                // shift all the grid rows above this line down
-                // the last grid row won't have another row to copy from, so ignore that row until
-                // the end
-                for i in y..(BOARD_HEIGHT as isize -1) {
-                    for x in 0..BOARD_WIDTH {
-                        self.content[i as usize][x] = self.content[i as usize + 1][x];
-                    }
-                }
-
-                // set the upper most grid row to all zeroes, indicating nothing is there
-                for x in self.content[BOARD_HEIGHT-1].iter_mut() {
-                    *x = 0;
-                }
-            } else {
-                y += 1;
-            }
-            line_counter -= 1;
-        }
-        */
 
         lines_cleared
     }
 
     pub fn is_board_full(&self) -> bool {
-        self.content[BOARD_HEIGHT-3].iter().any(|&c| c != TetriminoType::EmptySpace)
+        self.content[BOARD_HEIGHT - 3].iter().any(|&c| c != TetriminoType::EmptySpace)
     }
 }

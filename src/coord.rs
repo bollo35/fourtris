@@ -2,8 +2,8 @@ use core::ops;
 
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct Coord {
-    pub x: isize,
-    pub y: isize,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl ops::Add for Coord {

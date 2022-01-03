@@ -44,9 +44,20 @@ pub enum PieceType {
     TType,
 }
 
+// ---------------------------------------------------------------
+//            Initial Piece coordinates
+// ---------------------------------------------------------------
 // CONVENTION ALERT: The center point of these pieces is the first
 //                   coordinate of the array.
+//                   In the case of the I piece, and endpoint was
+//                   chosen. This piece gets treated differently
+//                   than the others. Also, the O piece never gets
+//                   rotated.
 // All these coordinates describe the pieces at their spawn point
+// Each array has a diagram to show which array index corresponds
+// to which tetrimino.
+
+// [3][1][2][0]
 const I_COORDS: [Coord; 4] = [
     Coord { x: 6, y: 20 },
     Coord { x: 4, y: 20 },
@@ -54,6 +65,8 @@ const I_COORDS: [Coord; 4] = [
     Coord { x: 3, y: 20 },
 ];
 
+// [1][3]
+// [0][2]
 const O_COORDS: [Coord; 4] = [
     Coord { x: 4, y: 20 },
     Coord { x: 4, y: 21 },
@@ -61,6 +74,8 @@ const O_COORDS: [Coord; 4] = [
     Coord { x: 5, y: 21 },
 ];
 
+// [2]
+// [1][0][3]
 const J_COORDS : [Coord; 4] = [
     Coord { x: 4, y: 20 },
     Coord { x: 3, y: 20 },
@@ -68,6 +83,8 @@ const J_COORDS : [Coord; 4] = [
     Coord { x: 5, y: 20 },
 ];
 
+//       [3]
+// [1][0][2]
 const L_COORDS : [Coord; 4] = [
     Coord { x: 4, y: 20 },
     Coord { x: 3, y: 20 },
@@ -75,6 +92,8 @@ const L_COORDS : [Coord; 4] = [
     Coord { x: 5, y: 21 },
 ];
 
+//    [2][3]
+// [1][0]
 const S_COORDS : [Coord; 4] = [
     Coord { x: 4, y: 20 },
     Coord { x: 3, y: 20 },
@@ -82,6 +101,8 @@ const S_COORDS : [Coord; 4] = [
     Coord { x: 5, y: 21 },
 ];
 
+// [1][2]
+//    [0][3]
 const Z_COORDS : [Coord; 4] = [
     Coord { x: 4, y: 20 },
     Coord { x: 3, y: 21 },
@@ -89,6 +110,8 @@ const Z_COORDS : [Coord; 4] = [
     Coord { x: 5, y: 20 },
 ];
 
+//    [3]
+// [1][0][2]
 const T_COORDS : [Coord; 4] = [
     Coord { x: 4, y: 20 },
     Coord { x: 3, y: 20 },
@@ -97,12 +120,13 @@ const T_COORDS : [Coord; 4] = [
 ];
 
 // The I piece doesn't really have a center point.
-// Thus, the code treats one of the end points as
+// Instead, the code treats one of the end points as
 // the center point. In order to rotate the piece
 // properly, there is an additional translation offset.
 // This offset changes based on the direction of rotation.
 // The counterclockwise rotation offset coordinates, are just
-// rotations of the clockwise offsets.
+// clockwise rotations of the clockwise offsets.
+// How did I discover this? I worked it out by hand.
 const I_CW_OFFSETS : [Coord; 4] = [
     Coord { x: -2, y: -1 },  // Horizontal down
     Coord { x: -1, y:  2 },  // Vertical left
@@ -157,12 +181,8 @@ impl Piece {
     }
 
     /// Calculate the new location of a piece if moved down by one space
-    pub fn apply_gravity(&self, displacement: isize) -> Piece {
-        let offset = if displacement > 0 {
-            Coord { x: 0, y: -displacement }
-        } else {
-            Coord { x: 0, y: displacement }
-        };
+    pub fn apply_gravity(&self, displacement: u32) -> Piece {
+        let offset = Coord { x: 0, y: -1 * displacement as i32 };
 
         Piece {
             position: add_offset(&self.position, offset),

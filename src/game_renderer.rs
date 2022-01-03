@@ -18,5 +18,5 @@ impl Default for TetriminoType {
 /// Define a trait for drawing the game state.
 /// This allows the use of multiple backends.
 pub trait GameRenderer {
-    fn draw_block(&mut self, x: i32, y: i32, piece_type: TetriminoType);
+    fn draw_block(&mut self, x: u8, y: u8, piece_type: TetriminoType);
 }

@@ -41,13 +41,13 @@ pub struct Game {
     /// Indicates whether the game is still active.
     state: GameState,
     /// This is used as part of the gravity calculation.
-    frames: usize,
+    frames: u8,
     /// The current level. This determines how fast the pieces fall.
     level: usize,
     /// The current score, used to determine which level has been reached.
-    score: usize,
+    score: u32,
     /// The next score to make to get to the next level.
-    next_level_score: usize,
+    next_level_score: u32,
     /// Counter to keep track of when to allow another rotation.
     rotation_cooldown_counter: u32,
     /// Counter to keep track of when to allow another translation.
@@ -220,19 +220,20 @@ impl Game {
         self.frames += 1;
         // THOUGHT: I could just add the gravity value to a stored value each frame, instead of
         //          recalculating the displacement every frame. Seems more efficient.
-        let displacement = GRAVITY[self.level-1] * self.frames as f64;
+        //          cast to u32 since the blocks move in discrete cells
+        let displacement = (GRAVITY[self.level-1] * (self.frames as f64)) as u32;
 
-        if (displacement as i32) > 0 || input.down {
+        if displacement > 0 || input.down {
             // reset frame counter
             self.frames = 0;
 
             let candidate = if input.down {
                 // if the user is holding the down input, move the piece down at the drop rate
                 // for that level
-                let diff_displacement = (1.0/GRAVITY[self.level-1] + 1.0) * GRAVITY[self.level - 1];
-                self.current_piece.apply_gravity(diff_displacement as isize)
+                let diff_displacement = ((1.0/GRAVITY[self.level-1] + 1.0) * GRAVITY[self.level - 1]) as u32;
+                self.current_piece.apply_gravity(diff_displacement)
             } else {
-                self.current_piece.apply_gravity(displacement as isize)
+                self.current_piece.apply_gravity(displacement)
             };
 
             let new_position = candidate.position;
@@ -268,12 +269,10 @@ impl Game {
                 }
 
                 if lines_cleared > 0 {
-                    // println!("SCORE: {}", self.score);
                     // do we need to go to the next level?
                     if self.score > self.next_level_score && self.level < 15 {
                         self.level += 1;
-                        // println!("LEVEL {}!", self.level);
-                        self.next_level_score += 5 * self.level;
+                        self.next_level_score += 5 * self.level as u32;
                     }
                 }
 
@@ -350,7 +349,7 @@ impl Game {
             for y in 0..22 {
                 for x in 0..10 {
                     let real_y = 21 - y;
-                    renderer.draw_block(x as i32, real_y as i32, self.board.tetrimino_type_at(x, y));
+                    renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
                 }
             }
         } else {
@@ -360,7 +359,7 @@ impl Game {
                 for c in previous_pos.iter() {
                     let x = c.x;
                     let y = 21 - c.y;
-                    renderer.draw_block(x as i32, y as i32, TetriminoType::EmptySpace);
+                    renderer.draw_block(x as u8, y as u8, TetriminoType::EmptySpace);
                 }
             }
 
@@ -378,7 +377,7 @@ impl Game {
             for c in self.current_piece.position.iter() {
                 let x = c.x;
                 let y = 21 - c.y;
-                renderer.draw_block(x as i32, y as i32, tet_type);
+                renderer.draw_block(x as u8, y as u8, tet_type);
             }
 
             // draw any newly settled pieces
@@ -386,18 +385,18 @@ impl Game {
                 for c in newly_settled_pieces.iter() {
                     let x = c.x;
                     let y = 21 - c.y;
-                    renderer.draw_block(x as i32, y as i32, self.board.tetrimino_type_at(c.x as usize, c.y as usize));
+                    renderer.draw_block(x as u8, y as u8, self.board.tetrimino_type_at(c.x as u8, c.y as u8));
                 }
             }
         }
     }
 
-    pub fn score(&self) -> usize {
+    pub fn score(&self) -> u32 {
         self.score
     }
 
-    pub fn level(&self) -> usize {
-        self.level
+    pub fn level(&self) -> u8 {
+        self.level as u8
     }
     /*
     /// Function for printing the board to the console.

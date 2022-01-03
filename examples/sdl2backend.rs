@@ -47,7 +47,7 @@ impl Sdl2Backend<'_> {
 }
 
 impl GameRenderer for Sdl2Backend<'_> {
-    fn draw_block(&mut self, x: i32, y: i32, tetrimino_type: TetriminoType) {
+    fn draw_block(&mut self, x: u8, y: u8, tetrimino_type: TetriminoType) {
         match tetrimino_type {
             TetriminoType::I => {
                 self.canvas.set_draw_color(Color::RGB(0, 0, 200));
@@ -75,8 +75,8 @@ impl GameRenderer for Sdl2Backend<'_> {
             },
         };
 
-        let rect = Rect::new(x * self.block_width as i32,
-                             y * self.block_width as i32,
+        let rect = Rect::new(x as i32 * self.block_width as i32,
+                             y as i32 * self.block_width as i32,
                              self.block_width,
                              self.block_width);
 
