@@ -3,7 +3,6 @@ use crate::pieces::{Piece, PieceType, PIECE_TYPES};
 use crate::coord::Coord;
 use crate::game_renderer::TetriminoType;
 use crate::game_renderer::GameRenderer;
-use crate::game_renderer::RendererType;
 use crate::rng::Rng;
 
 #[derive(Default)]
@@ -11,6 +10,8 @@ struct RenderInfo {
     previous_piece_pos: Option<[Coord; 4]>,
     newly_settled_pieces: Option<[Coord; 4]>,
     lines_cleared: bool,
+    new_score: Option<u32>,
+    new_level: Option<usize>,
 }
 
 #[derive(Default)]
@@ -269,16 +270,17 @@ impl Game {
                     self.score += 8;
                 }
 
-                if lines_cleared > 0 {
-                    // do we need to go to the next level?
-                    if self.score > self.next_level_score && self.level < 15 {
-                        self.level += 1;
-                        self.next_level_score += 5 * self.level as u32;
-                    }
+                let lines_were_cleared = lines_cleared > 0;
+                let off_to_new_level = self.score > self.next_level_score && self.level < 15;
+                if lines_were_cleared && off_to_new_level {
+                    self.level += 1;
+                    self.next_level_score += 5 * self.level as u32;
                 }
 
                 // set render info
-                self.render_info.lines_cleared = lines_cleared > 0;
+                self.render_info.lines_cleared = lines_were_cleared;
+                self.render_info.new_score = if lines_were_cleared { Some(self.score) } else { None };
+                self.render_info.new_level = if off_to_new_level { Some(self.level) } else { None };
 
                 if collision || at_bottom {
                     // move to the next piece
@@ -332,54 +334,59 @@ impl Game {
     }
 
     /// Draw the game state using the provided renderer.
-    // TODO: Can this function be configured at compile time instead of run time?
-    //       i.e. if it uses a PartialRedraw renderer, can we compile ONLY that code?
-    //       more importantly, can this be done without creating two different functions?
     pub fn draw(&self, renderer: &mut dyn GameRenderer) {
-        let renderer_type = renderer.renderer_type();
-        match renderer_type {
-            RendererType::PartialRedraw => {
-                if self.render_info.lines_cleared {
-                    // redraw the board
-                    for y in 0..22 {
-                        for x in 0..10 {
-                            let real_y = 21 - y;
-                            renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
-                        }
-                    }
-                } else {
-                    // do all erasing first, in case something gets drawn over it
-                    if let Some(previous_pos) = &self.render_info.previous_piece_pos {
-                        // erase the previous location
-                        for c in previous_pos.iter() {
-                            let x = c.x;
-                            let y = 21 - c.y;
-                            renderer.draw_block(x as u8, y as u8, TetriminoType::EmptySpace);
-                        }
-                    }
+        self._draw(renderer);
+    }
 
-                    // draw any newly settled pieces
-                    if let Some (newly_settled_pieces) = &self.render_info.newly_settled_pieces {
-                        for c in newly_settled_pieces.iter() {
-                            let x = c.x;
-                            let y = 21 - c.y;
-                            renderer.draw_block(x as u8, y as u8, self.board.tetrimino_type_at(c.x as u8, c.y as u8));
-                        }
-                    }
-                }
-            },
-            RendererType::FullRedraw => {
-                // redraw the board
-                for y in 0..22 {
-                    for x in 0..10 {
-                        let real_y = 21 - y;
-                        renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
-                    }
-                }
-            },
-        };
+    #[cfg(not(any(feature="partial_redraw", feature="full_redraw")))]
+    compile_error!("Must enable feature \"partial_redraw\" or feature \"full_redraw\".");
 
-        // always draw the current piece
+    #[cfg(all(feature="partial_redraw", feature="full_redraw"))]
+    compile_error!("feature \"partial_redraw\" and feature \"full_redraw\" cannot be enabled at the same time");
+
+    #[cfg(feature="partial_redraw")]
+    fn _draw(&self, renderer: &mut dyn GameRenderer) {
+
+        if let Some(score) = self.render_info.new_score {
+            renderer.draw_score(score);
+        }
+
+        if let Some(level) = self.render_info.new_level {
+            renderer.draw_level(level);
+        }
+        
+        // make updates to the board as necessary
+        if self.render_info.lines_cleared {
+            // redraw the board
+            for y in 0..22 {
+                for x in 0..10 {
+                    let real_y = 21 - y;
+                    renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
+                }
+            }
+        } else {
+            // do all erasing first, in case a new piece may have some overlap with the
+            // previous position
+            if let Some(previous_pos) = &self.render_info.previous_piece_pos {
+                // erase the previous location
+                for c in previous_pos.iter() {
+                    let x = c.x;
+                    let y = 21 - c.y;
+                    renderer.draw_block(x as u8, y as u8, TetriminoType::EmptySpace);
+                }
+            }
+
+            // draw any newly settled pieces
+            if let Some (newly_settled_pieces) = &self.render_info.newly_settled_pieces {
+                for c in newly_settled_pieces.iter() {
+                    let x = c.x;
+                    let y = 21 - c.y;
+                    renderer.draw_block(x as u8, y as u8, self.board.tetrimino_type_at(c.x as u8, c.y as u8));
+                }
+            }
+        }
+
+        // draw the active (falling) piece
         let tet_type =
             match self.current_piece.piece_type {
                 PieceType::IType(_) => TetriminoType::I,
@@ -390,7 +397,44 @@ impl Game {
                 PieceType::ZType    => TetriminoType::Z,
                 PieceType::TType    => TetriminoType::T,
             };
+        for c in self.current_piece.position.iter() {
+            let x = c.x;
+            let y = 21 - c.y;
+            renderer.draw_block(x as u8, y as u8, tet_type);
+        }
+    }
+
+
+    #[cfg(feature="full_redraw")]
+    pub fn _draw(&self, renderer: &mut dyn GameRenderer) {
+
+        if let Some(score) = self.render_info.new_score {
+            renderer.draw_score(score);
+        }
+
+        if let Some(level) = self.render_info.new_level {
+            renderer.draw_level(level);
+        }
+
+        // redraw the board
+        for y in 0..22 {
+            for x in 0..10 {
+                let real_y = 21 - y;
+                renderer.draw_block(x as u8, real_y as u8, self.board.tetrimino_type_at(x, y));
+            }
+        }
+
         // draw the active (falling) piece
+        let tet_type =
+            match self.current_piece.piece_type {
+                PieceType::IType(_) => TetriminoType::I,
+                PieceType::OType    => TetriminoType::O,
+                PieceType::JType    => TetriminoType::J,
+                PieceType::LType    => TetriminoType::L,
+                PieceType::SType    => TetriminoType::S,
+                PieceType::ZType    => TetriminoType::Z,
+                PieceType::TType    => TetriminoType::T,
+            };
         for c in self.current_piece.position.iter() {
             let x = c.x;
             let y = 21 - c.y;

@@ -9,7 +9,7 @@ use sdl2::rect::Rect;
 extern crate rand;
 use rand::Rng;
 use tetris::game::{Game, GameState, Input};
-use tetris::game_renderer::{GameRenderer, RendererType, TetriminoType};
+use tetris::game_renderer::{GameRenderer, TetriminoType};
 
 use std::time::Duration;
 
@@ -82,8 +82,13 @@ impl GameRenderer for Sdl2Backend<'_> {
         self.canvas.fill_rect(rect);
     }
 
-    fn renderer_type(&self) -> RendererType {
-        RendererType::FullRedraw
+    // I don't feel like implementing these, but here is where they really belong
+    fn draw_score(&mut self, score: u32) {
+ //       println!("score: {}", score);
+    }
+
+    fn draw_level(&mut self, level: usize) {
+//        println!("level: {}", level);
     }
 }
 
