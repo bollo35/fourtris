@@ -12,8 +12,7 @@ pub struct Board {
 impl Board {
     pub fn new() -> Board {
         Board {
-            // default boolean value is false
-            // this will make the board empty
+            // this will make an empty board
             content: Default::default(),
         }
     }
@@ -25,12 +24,6 @@ impl Board {
     pub fn is_tetrimino_within_bounds(&self, coords: &[Coord; 4]) -> bool {
         coords.iter().all(|&c| 0 <= c.x && c.x < BOARD_WIDTH as i32 && 
                                0 <= c.y && c.y < BOARD_HEIGHT as i32)
-    }
-
-    pub fn is_not_vacant_at(&self, x: u8, y: u8) -> bool {
-        (x <= BOARD_WIDTH as u8) &&
-        (y <= BOARD_HEIGHT as u8) &&
-        self.content[y as usize][x as usize] != TetriminoType::EmptySpace
     }
 
     // THIS FUNCTION SHOULD ONLY BE CALLED AFTER VERIFYING THAT
