@@ -135,38 +135,27 @@ impl Game {
 
         if self.translation_cooldown_counter ==  0 { 
 
-            self.translation_cooldown_counter = COOLDOWN;
-            // if the player is pressing both the left and right buttons
-            // don't move the piece
-            if input.left && !input.right {
-                let candidate = self.current_piece.move_left();
+            let translated_piece = 
+                if input.left && !input.right {
+                    Some(self.current_piece.move_left())
+                } else if input.right && !input.left {
+                    Some(self.current_piece.move_right())
+                } else {
+                    None
+                };
 
-                // calculate the new position of the piece
-                let new_position = candidate.position;
-
-                // check if the piece is within the bounds of the board
-                // and that moving the piece does not cause a collision
-                if self.board.is_tetrimino_within_bounds(&new_position) &&
-                   !self.board.is_occupied(&new_position) {
-                    // update the current piece with the new position
+            // if the translate piece is within the playfield
+            // and it doesn't collide with any of the pieces on the board
+            // accept the translation
+            if let Some(candidate) = translated_piece {
+                if self.board.is_tetrimino_within_bounds(&candidate.position) &&
+                !self.board.is_occupied(&candidate.position) {
+                    // update the current piece information
                     self.current_piece = candidate;
+                    // only apply the translation cool down if the piece
+                    // has successfully been moved
+                    self.translation_cooldown_counter = COOLDOWN;
                 }
-            } else if input.right && !input.left {
-                let candidate = self.current_piece.move_right();
-
-                // calculate the new position of the piece
-                let new_position = candidate.position;
-
-                // check if the piece is within the bounds of the board
-                // and that moving the piece does not cause a collision
-                if self.board.is_tetrimino_within_bounds(&new_position) &&
-                   !self.board.is_occupied(&new_position) {
-                    // update the current piece with the new position
-                    self.current_piece = candidate;
-                }
-            } else {
-                // if both buttons for translation were pressed, then let the player try again
-                self.translation_cooldown_counter = 0;
             }
         }
 
@@ -179,39 +168,25 @@ impl Game {
         }
 
         if self.rotation_cooldown_counter == 0 {
-            self.rotation_cooldown_counter = COOLDOWN;
-            // if the player is trying to rotate both clockwise and counterclockwise
-            // don't bother rotating the piece
-            if input.cw_rotate && !input.ccw_rotate {
-                let candidate = self.current_piece.cw_rot();
 
-                // calculate the new position of the piece
-                let new_position = candidate.position;
+            let rotated_piece = 
+                if input.cw_rotate && !input.ccw_rotate {
+                    Some(self.current_piece.cw_rot())
+                } else if input.ccw_rotate && !input.cw_rotate {
+                    Some(self.current_piece.ccw_rot())
+                } else {
+                    None
+                };
 
-
-                // check if the rotated piece is within the bounds of the board
-                // and that rotating the piece does not cause a collision
-                if self.board.is_tetrimino_within_bounds(&new_position) &&
-                   !self.board.is_occupied(&new_position) {
-                    // update the position of the current piece
+            if let Some(candidate) = rotated_piece {
+                if self.board.is_tetrimino_within_bounds(&candidate.position) &&
+                !self.board.is_occupied(&candidate.position) {
+                    // update the current piece information
                     self.current_piece = candidate;
+                    // only apply the rotation cooldown if the piece
+                    // has successfully been rotated
+                    self.rotation_cooldown_counter = COOLDOWN;
                 }
-            } else if input.ccw_rotate && !input.cw_rotate {
-                let candidate = self.current_piece.ccw_rot();
-
-                // calculate the new position of the piece
-                let new_position = candidate.position;
-
-                // check if the rotated piece is within the bounds of the board
-                // and that rotating the piece does not cause a collision
-                if self.board.is_tetrimino_within_bounds(&new_position) &&
-                   !self.board.is_occupied(&new_position) {
-                    // update the position of the current piece
-                    self.current_piece = candidate;
-                }
-            } else {
-                // if both buttons for rotation were pressed, then let the player rotate again
-                self.rotation_cooldown_counter = 0;
             }
         }
 
@@ -333,6 +308,14 @@ impl Game {
         }
     }
 
+    pub fn score(&self) -> u32 {
+        self.score
+    }
+
+    pub fn level(&self) -> u8 {
+        self.level as u8
+    }
+
     /// Draw the game state using the provided renderer.
     pub fn draw(&self, renderer: &mut dyn GameRenderer) {
         self._draw(renderer);
@@ -435,13 +418,5 @@ impl Game {
             let y = 21 - c.y;
             renderer.draw_block(x as u8, y as u8, tet_type);
         }
-    }
-
-    pub fn score(&self) -> u32 {
-        self.score
-    }
-
-    pub fn level(&self) -> u8 {
-        self.level as u8
     }
 }
