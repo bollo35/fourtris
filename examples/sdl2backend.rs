@@ -4,7 +4,9 @@ use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::video::Window;
 use sdl2::render::Canvas;
+use sdl2::render::Texture;
 use sdl2::rect::Rect;
+use sdl2::ttf::Font;
 
 extern crate rand;
 use rand::Rng;
@@ -12,6 +14,18 @@ use tetris::game::{Game, GameState, Input};
 use tetris::game_renderer::{GameRenderer, TetriminoType};
 
 use std::time::Duration;
+use std::path::Path;
+
+// ---------------------------
+//         CONSTANTS
+// ---------------------------
+const PADDING : u32 = 80;
+const BLOCK_WIDTH : u32 = 20;
+const PLAYFIELD_WIDTH : u32 = BLOCK_WIDTH * 10;
+const PLAYFIELD_HEIGHT : u32 = BLOCK_WIDTH * 22;
+const WINDOW_WIDTH : u32 = 2 * PADDING + PLAYFIELD_WIDTH;
+const WINDOW_HEIGHT : u32 = PLAYFIELD_HEIGHT;
+
 
 pub struct Randy {
     rng: rand::rngs::ThreadRng
@@ -31,21 +45,38 @@ impl tetris::rng::Rng for Randy {
         self.rng.gen_range(0..7)
     }
 }
-pub struct Sdl2Backend<'a> {
+
+pub struct Sdl2Backend<'a, 'b> {
     canvas: &'a mut Canvas<Window>,
-    block_width: u32,
+    font: &'b Font<'b, 'b>,
 }
 
-impl Sdl2Backend<'_> {
-    pub fn new(canvas: &mut Canvas<Window>, block_width: u32) -> Sdl2Backend {
+impl Sdl2Backend<'_, '_> {
+    pub fn new<'a>(canvas: &'a mut Canvas<Window>, font: &'a Font) -> Sdl2Backend<'a, 'a> {
         Sdl2Backend {
             canvas,
-            block_width,
+            font,
         }
     }
 }
 
-impl GameRenderer for Sdl2Backend<'_> {
+impl GameRenderer for Sdl2Backend<'_, '_> {
+    fn draw_board(&mut self) {
+        // clear the screen to white
+        self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+        self.canvas.clear();
+
+
+        // draw the playing field
+        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        let playfield = Rect::new(PADDING as i32,
+                                  0,
+                                  PLAYFIELD_WIDTH,
+                                  PLAYFIELD_HEIGHT);
+        self.canvas.fill_rect(playfield).unwrap();
+
+    }
+
     fn draw_block(&mut self, x: u8, y: u8, tetrimino_type: TetriminoType) {
         match tetrimino_type {
             TetriminoType::I => {
@@ -74,21 +105,76 @@ impl GameRenderer for Sdl2Backend<'_> {
             },
         };
 
-        let rect = Rect::new(x as i32 * self.block_width as i32,
-                             y as i32 * self.block_width as i32,
-                             self.block_width,
-                             self.block_width);
+        let real_x = x as i32 * BLOCK_WIDTH  as i32 + PADDING as i32;
+        let real_y = y as i32 * BLOCK_WIDTH  as i32;
+        let rect = Rect::new(real_x,
+                             real_y,
+                             BLOCK_WIDTH,
+                             BLOCK_WIDTH);
 
-        self.canvas.fill_rect(rect);
+        self.canvas.fill_rect(rect).unwrap();
     }
 
     // I don't feel like implementing these, but here is where they really belong
     fn draw_score(&mut self, score: u32) {
- //       println!("score: {}", score);
+        // create a texture for the numerical score
+        let text_foreground_color = Color::RGB(255, 0, 0);
+        let text_background_color = Color::RGB(255, 255, 255);
+        let texture_creator = self.canvas.texture_creator();
+
+        // create score texture
+        let render_score_string_shaded = self.font.render("SCORE").
+            shaded(text_foreground_color, text_background_color).unwrap();
+        let score_string_texture = Texture::from_surface(&render_score_string_shaded, &texture_creator).unwrap();
+        let score_string_rect = Rect::new((PADDING + PLAYFIELD_WIDTH + 5) as i32,
+                                          0,
+                                          render_score_string_shaded.width(),
+                                          render_score_string_shaded.height());
+        // draw the letters
+        self.canvas.copy(&score_string_texture, None, Some(score_string_rect)).unwrap();
+
+        // create score texture
+        let render_score_value_shaded = self.font.render(&format!("{}", score)).
+            shaded(text_foreground_color, text_background_color).unwrap();
+        let score_value_texture = Texture::from_surface(&render_score_value_shaded, &texture_creator).unwrap();
+
+        let x_pos = PADDING + PLAYFIELD_WIDTH + 5 + (PADDING - render_score_value_shaded.width())/ 2;
+        let score_value_rect = Rect::new(x_pos as i32,
+                                         (score_string_rect.height() + 5) as i32,
+                                         render_score_value_shaded.width(),
+                                         render_score_value_shaded.height());
+        self.canvas.copy(&score_value_texture, None, Some(score_value_rect)).unwrap();
     }
 
     fn draw_level(&mut self, level: usize) {
-//        println!("level: {}", level);
+
+        // create a texture for the numerical score
+        let text_foreground_color = Color::RGB(255, 0, 0);
+        let text_background_color = Color::RGB(255, 255, 255);
+        let texture_creator = self.canvas.texture_creator();
+
+        // create level texture
+        let render_level_string_shaded = self.font.render("LEVEL").
+            shaded(text_foreground_color, text_background_color).unwrap();
+        let level_string_texture = Texture::from_surface(&render_level_string_shaded, &texture_creator).unwrap();
+        let level_string_rect = Rect::new(5,
+                                          0,
+                                          render_level_string_shaded.width(),
+                                          render_level_string_shaded.height());
+        // draw the letters
+        self.canvas.copy(&level_string_texture, None, Some(level_string_rect)).unwrap();
+
+        // create score texture
+        let render_level_value_shaded = self.font.render(&format!("{}", level)).
+            shaded(text_foreground_color, text_background_color).unwrap();
+        let level_value_texture = Texture::from_surface(&render_level_value_shaded, &texture_creator).unwrap();
+
+        let x_pos = (PADDING - render_level_value_shaded.width())/ 2;
+        let level_value_rect = Rect::new(x_pos as i32,
+                                         (level_string_rect.height() + 5)  as i32,
+                                         render_level_value_shaded.width(),
+                                         render_level_value_shaded.height());
+        self.canvas.copy(&level_value_texture, None, Some(level_value_rect)).unwrap();
     }
 }
 
@@ -96,27 +182,21 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
-    let block_width = 20;
-    let window = video_subsystem.window("Kinda Tetris", 10*block_width, 22*block_width)
+    let window = video_subsystem.window("Kinda Tetris", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .build()
         .unwrap();
 
     let mut canvas = window.into_canvas().build().unwrap();
 
-    canvas.set_draw_color(Color::RGB(0, 255, 255));
-    canvas.clear();
-    canvas.present();
+    let sdl_ttf_context = sdl2::ttf::init().unwrap();
+    let font_path = Path::new("Raleway-Bold.ttf");
+    let font = sdl_ttf_context.load_font(font_path, 20).unwrap();
 
     let mut randy = Randy::new();
-
     let mut event_pump = sdl_context.event_pump().unwrap();
-
     let mut game = Game::new(&mut randy);
-
     let mut input : Input = Default::default();
-
-    let mut level = game.level();
 
     'playing: loop {
         // handle events
@@ -152,10 +232,6 @@ fn main() {
 
         // run the game loop
         let state = game.run_loop(&input, &mut randy);
-        if game.level() != level {
-            level = game.level();
-            println!("Level {}!", level);
-        }
 
         match state {
             GameState::GameOver =>  {
@@ -173,7 +249,7 @@ fn main() {
             canvas.set_draw_color(Color::RGB(0, 0, 0));
             canvas.clear();
 
-            let mut backend = Sdl2Backend::new(&mut canvas, block_width);
+            let mut backend = Sdl2Backend::new(&mut canvas, &font);
             game.draw(&mut backend);
         }
 
@@ -182,20 +258,4 @@ fn main() {
         // 16 milliseconds is ~ 60 fps
         std::thread::sleep(Duration::from_millis(16));
     }
-
-    /*
-    // The following code is for ad hoc testing
-    let mut game = Game::new();
-
-    let mut input : Input = Default::default();
-    input.ccw_rotate = true;
-    input.down = true;
-    for i in 0..500 {
-        let state = game.run_loop(&input);
-
-        println!("{:?}", state);
-        println!("i = {}", i);
-        game.print_board();
-    }
-    */
 }

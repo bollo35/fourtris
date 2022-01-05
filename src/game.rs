@@ -407,14 +407,9 @@ impl Game {
 
     #[cfg(feature="full_redraw")]
     pub fn _draw(&self, renderer: &mut dyn GameRenderer) {
-
-        if let Some(score) = self.render_info.new_score {
-            renderer.draw_score(score);
-        }
-
-        if let Some(level) = self.render_info.new_level {
-            renderer.draw_level(level);
-        }
+        renderer.draw_board();
+        renderer.draw_score(self.score);
+        renderer.draw_level(self.level);
 
         // redraw the board
         for y in 0..22 {
