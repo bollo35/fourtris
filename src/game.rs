@@ -249,7 +249,7 @@ impl Game {
                     let off_to_a_new_level = self.score > self.next_level_score && self.level < 15;
                     if off_to_a_new_level {
                         self.level += 1;
-                        self.next_level_score += 5 * self.level as u32;
+                        self.next_level_score += 5 * (self.level+1) as u32;
                     }
 
                     // save render info
