@@ -131,10 +131,7 @@ impl Game {
         // -------------------------
         if self.translation_cooldown_counter > 0 {
             self.translation_cooldown_counter -= 1;
-        }
-
-        if self.translation_cooldown_counter ==  0 { 
-
+        } else { // counter is u32, so hitting this branch means it's equal to zero
             let translated_piece = 
                 if input.left && !input.right {
                     Some(self.current_piece.move_left())
@@ -152,7 +149,7 @@ impl Game {
                 !self.board.is_occupied(&candidate.position) {
                     // update the current piece information
                     self.current_piece = candidate;
-                    // only apply the translation cool down if the piece
+                    // only apply the translation cooldown if the piece
                     // has successfully been moved
                     self.translation_cooldown_counter = COOLDOWN;
                 }
@@ -165,10 +162,7 @@ impl Game {
         // --------------------
         if self.rotation_cooldown_counter > 0 {
             self.rotation_cooldown_counter -= 1;
-        }
-
-        if self.rotation_cooldown_counter == 0 {
-
+        } else { // counter is u32, so hitting this branch means it's equal to zero
             let rotated_piece = 
                 if input.cw_rotate && !input.ccw_rotate {
                     Some(self.current_piece.cw_rot())
@@ -180,7 +174,7 @@ impl Game {
 
             if let Some(candidate) = rotated_piece {
                 if self.board.is_tetrimino_within_bounds(&candidate.position) &&
-                !self.board.is_occupied(&candidate.position) {
+                   !self.board.is_occupied(&candidate.position) {
                     // update the current piece information
                     self.current_piece = candidate;
                     // only apply the rotation cooldown if the piece
