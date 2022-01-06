@@ -3,6 +3,8 @@ use crate::pieces::Piece;
 use crate::pieces::PieceType;
 use crate::game_renderer::TetriminoType;
 
+use core::ops::Range;
+
 const BOARD_WIDTH: usize  =  10;
 const BOARD_HEIGHT: usize  =  22;
 pub struct Board {
@@ -42,7 +44,7 @@ impl Board {
         coords.iter().any(|&c| c.y == 0) && !coords.iter().any(|&c| c.y < 0)
     }
 
-    pub fn add_piece(&mut self, piece: &Piece) -> u32 {
+    pub fn add_piece(&mut self, piece: &Piece) -> Range<usize> {
         let tet_type = 
             match piece.piece_type {
                 PieceType::IType(_) => TetriminoType::I,
@@ -60,6 +62,7 @@ impl Board {
             self.content[c.y as usize][c.x as usize] = tet_type;
         }
 
+
         // determine y coordinate range
         // the y range determines where to check for completed lines
         let mut y_min : i32 =  400;
@@ -74,6 +77,10 @@ impl Board {
             }
         }
 
+        (y_min as usize)..((y_max + 1) as usize)
+    }
+
+    pub fn clear_lines(&mut self, y_range: Range<usize>) -> u32 {
         // this will hold the indices of lines to be removed
         // at most 4 lines will be removed
         // -1 will indicate there are no more lines to remove
@@ -81,14 +88,14 @@ impl Board {
         let mut idx = 0;
         let mut lines_cleared = 0;
         // check for completed lines and mark all entries with a 2
-        for y in y_min..=y_max {
+        for y in y_range {
             // save all indices where there isn't a line to clear
             // NOTE: y must be within the board bounds
             let is_completed_line = self.content[y as usize].iter().all(|&val| val != TetriminoType::EmptySpace);
 
             // mark line for deletion if it's a completed line
             if is_completed_line {
-                completed_lines[idx] = y;
+                completed_lines[idx] = y as i32;
                 idx += 1;
                 lines_cleared += 1;
             }

@@ -39,11 +39,11 @@ pub struct Game {
     /// The playing board
     board: Board,
     /// Index for the pieces array.
-    piece_counter: usize,
+    piece_index: usize,
     /// Indicates whether the game is still active.
     state: GameState,
-    /// This is used as part of the gravity calculation.
-    frames: u8,
+    /// Represents the current displacement of the active piece.
+    displacement: f32,
     /// The current level. This determines how fast the pieces fall.
     level: usize,
     /// The current score, used to determine which level has been reached.
@@ -61,7 +61,7 @@ pub struct Game {
 // 1 unit of gravity = moving one cell
 // these are the gravity constants for 60 fps
 // source: https://harddrop.com/wiki/Tetris_Worlds
-const GRAVITY : [f64; 15] = [
+const GRAVITY : [f32; 15] = [
     0.01667,
     0.021017,
     0.026977,
@@ -102,9 +102,9 @@ impl Game {
             pieces: tets,
             current_piece: tets[0],
             board: Board::new(),
-            piece_counter: 0,
+            piece_index: 0,
             state: GameState::Playing,
-            frames: 0,
+            displacement: 0.0,
             level: 1,
             score: 0,
             next_level_score: 5,
@@ -194,25 +194,24 @@ impl Game {
         //    VERTICAL MOVEMENT
         // -----------------------
 
-        self.frames += 1;
-        // THOUGHT: I could just add the gravity value to a stored value each frame, instead of
-        //          recalculating the displacement every frame. Seems more efficient.
-        //          cast to u32 since the blocks move in discrete cells
-        let displacement = (GRAVITY[self.level-1] * (self.frames as f64)) as u32;
+        self.displacement += GRAVITY[self.level-1];
 
-        if displacement > 0 || input.down {
-            // reset frame counter
-            self.frames = 0;
+        if (self.displacement as u32) > 0 || input.down {
 
-            let candidate = if input.down {
-                // if the user is holding the down input, move the piece down at the drop rate
-                // for that level
-                let diff_displacement = ((1.0/GRAVITY[self.level-1] + 1.0) * GRAVITY[self.level - 1]) as u32;
-                self.current_piece.apply_gravity(diff_displacement)
-            } else {
-                self.current_piece.apply_gravity(displacement)
-            };
+            // choose the displacement value we will apply
+            let displacement =
+                if input.down {
+                    // move the piece down at least 1 cell per frame while the user is holding the
+                    // down button
+                    core::cmp::max(1, self.displacement as u32 + 1)
+                } else {
+                    self.displacement as u32
+                };
 
+            // reset internal displacement
+            self.displacement = 0.0;
+
+            let candidate = self.current_piece.apply_gravity(displacement);
             let new_position = candidate.position;
 
             if self.board.is_tetrimino_within_bounds(&new_position) {
@@ -222,47 +221,58 @@ impl Game {
                 let collision = self.board.is_occupied(&new_position);
                 let at_bottom = self.board.is_at_the_bottom(&new_position);
 
-                let lines_cleared = if collision {
-                        // take note of the newly settled pieces for rendering
-                        self.render_info.newly_settled_pieces = Some(self.current_piece.position.clone());
-                        self.board.add_piece(&self.current_piece)
+                let possibly_settled_piece = 
+                    if collision {
+                        Some(self.current_piece)
                     } else if at_bottom {
-                        // take note of the newly settled pieces for rendering
-                        self.render_info.newly_settled_pieces = Some(new_position);
-                        self.board.add_piece(&candidate)
+                        Some(candidate)
                     } else {
-                        0
+                        None
                     };
 
-                // update the score based on the number of lines cleared
-                if lines_cleared == 1 {
-                    self.score += 1;
-                } else if lines_cleared == 2 {
-                    self.score += 3;
-                } else if lines_cleared == 3 {
-                    self.score += 5;
-                } else if lines_cleared == 4 {
-                    self.score += 8;
-                }
+                if let Some(settled_piece) = possibly_settled_piece {
+                    // add the piece to the board
+                    let y_range = self.board.add_piece(&settled_piece);
 
-                let lines_were_cleared = lines_cleared > 0;
-                let off_to_new_level = self.score > self.next_level_score && self.level < 15;
-                if lines_were_cleared && off_to_new_level {
-                    self.level += 1;
-                    self.next_level_score += 5 * self.level as u32;
-                }
+                    // determine how many lines were cleared after adding the piece
+                    let lines_cleared = self.board.clear_lines(y_range);
 
-                // set render info
-                self.render_info.lines_cleared = lines_were_cleared;
-                self.render_info.new_score = if lines_were_cleared { Some(self.score) } else { None };
-                self.render_info.new_level = if off_to_new_level { Some(self.level) } else { None };
+                    // update the score based on the number of lines cleared
+                    self.score +=
+                        if lines_cleared == 1 {
+                            1
+                        } else if lines_cleared == 2 {
+                            3
+                        } else if lines_cleared == 3 {
+                            5
+                        } else if lines_cleared == 4 {
+                            8
+                        } else {
+                            0
+                        };
 
-                if collision || at_bottom {
+                    // see if we need to go to the next level
+                    let off_to_a_new_level = self.score > self.next_level_score && self.level < 15;
+                    if off_to_a_new_level {
+                        self.level += 1;
+                        self.next_level_score += 5 * self.level as u32;
+                    }
+
+                    // save render info
+                    // TODO: can we make the render info only get compiled if performing a
+                    //       parial redraw?
+                    let lines_were_cleared = lines_cleared > 0; // intermediate variable to shorten line length
+                    self.render_info.lines_cleared = lines_were_cleared;
+                    self.render_info.new_score = if lines_were_cleared { Some(self.score) } else { None };
+                    self.render_info.new_level = if off_to_a_new_level { Some(self.level) } else { None };
+                    // save the position of these pieces for the next render cycle
+                    self.render_info.newly_settled_pieces = Some(settled_piece.position);
+
                     // move to the next piece
-                    self.piece_counter += 1;
+                    self.piece_index += 1;
                     // if all of the pieces have been used, shuffle the pieces
-                    if self.piece_counter == self.pieces.len() {
-                        // do a knuth shuffle to permuate the pieces
+                    if self.piece_index == self.pieces.len() {
+                        // do a knuth shuffle to create a permutation of the pieces
                         for i in 0..self.pieces.len() {
                             let index = rng.next();
                             if index != i {
@@ -272,12 +282,14 @@ impl Game {
                                 self.pieces[index] = temp;
                             }
                         }
-                        // reset the counter
-                        self.piece_counter = 0;
+                        // reset the index
+                        self.piece_index = 0;
                     }
                     // set new current piece
-                    self.current_piece = self.pieces[self.piece_counter];
+                    self.current_piece = self.pieces[self.piece_index];
                 } else {
+                    // current piece did not collide with existing tetriminoes
+                    // and did not hit the bottom...it may continue its descent
                     self.current_piece = candidate;
                 }
             } else {
