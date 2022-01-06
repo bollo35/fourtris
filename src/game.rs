@@ -85,7 +85,7 @@ pub enum GameState {
 }
 
 impl Game {
-    pub fn new(rng: &mut dyn Rng) -> Game {
+    pub fn new<R: Rng>(rng: &mut R) -> Self {
         let mut tets = PIECE_TYPES;
         // do a knuth shuffle to permuate the pieces
         for i in 0..tets.len() {
@@ -114,7 +114,7 @@ impl Game {
         }
     }
 
-    pub fn run_loop(&mut self, input: &Input, rng: &mut dyn Rng) -> GameState {
+    pub fn run_loop<R: Rng>(&mut self, input: &Input, rng: &mut R) -> GameState {
         match self.state {
             GameState::GameOver => return self.state,
             _ => {},
@@ -323,7 +323,7 @@ impl Game {
     }
 
     /// Draw the game state using the provided renderer.
-    pub fn draw(&self, renderer: &mut dyn GameRenderer) {
+    pub fn draw<G: GameRenderer>(&self, renderer: &mut G) {
         self._draw(renderer);
     }
 
@@ -334,7 +334,7 @@ impl Game {
     compile_error!("feature \"partial_redraw\" and feature \"full_redraw\" cannot be enabled at the same time");
 
     #[cfg(feature="partial_redraw")]
-    fn _draw(&self, renderer: &mut dyn GameRenderer) {
+    fn _draw<G: GameRenderer>(&self, renderer: &mut G) {
 
         if let Some(score) = self.render_info.new_score {
             renderer.draw_score(score);
@@ -395,7 +395,7 @@ impl Game {
 
 
     #[cfg(feature="full_redraw")]
-    pub fn _draw(&self, renderer: &mut dyn GameRenderer) {
+    pub fn _draw<G: GameRenderer>(&self, renderer: &mut G) {
         renderer.draw_board();
         renderer.draw_score(self.score);
         renderer.draw_level(self.level);
