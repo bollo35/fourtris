@@ -28,6 +28,15 @@ impl Board {
                                0 <= c.y && c.y < BOARD_HEIGHT as i32)
     }
 
+    #[cfg(test)]
+    pub fn add_tetrimino_at(&mut self, x: usize, y: usize, tet_type: TetriminoType) {
+        if x < BOARD_WIDTH && y < BOARD_HEIGHT {
+            self.content[y][x] = tet_type;
+        } else {
+            panic!("Invalid x or y coordinate ({},{})", x, y);
+        }
+    }
+
     // THIS FUNCTION SHOULD ONLY BE CALLED AFTER VERIFYING THAT
     // THE COORDINATES ARE WITHIN THE BOARD SIZE
     pub fn is_occupied(&self, coords: &[Coord; 4]) -> bool {

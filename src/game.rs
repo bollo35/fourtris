@@ -114,11 +114,78 @@ impl Game {
         }
     }
 
+    fn handle_horizontal_input<P>(input: &Input, piece: &Piece, accept_new_position: P) 
+        -> Option<Piece> where 
+        P : Fn(&Piece) -> bool {
+        let translated_piece =
+            if input.left && !input.right {
+                Some(piece.move_left())
+            } else if input.right && !input.left {
+                Some(piece.move_right())
+            } else {
+                None
+            };
+
+        // if the translated piece is within the playfield
+        // and it doesn't collide with any of the pieces on the board
+        // accept the translation
+        translated_piece.filter(accept_new_position) 
+    }
+
+    fn handle_rotation_input<P>(input: &Input, piece: &Piece, accept_new_position: P)
+        -> Option<Piece> where 
+        P : Fn(&Piece) -> bool {
+        let rotated_piece = 
+            if input.cw_rotate && !input.ccw_rotate {
+                Some(piece.cw_rot())
+            } else if input.ccw_rotate && !input.cw_rotate {
+                Some(piece.ccw_rot())
+            } else {
+                None
+            };
+        // if the rotated piece is within the playfield
+        // and it doesn't collide with any of the pieces on the board
+        // accept the rotation
+        rotated_piece.filter(accept_new_position)
+    }
+
+    fn handle_vertical_movement(piece: &Piece, board: &Board, displacement: u32)
+        -> (Piece, bool) {
+        let relocated_piece = piece.apply_gravity(displacement);
+
+        if board.is_tetrimino_within_bounds(&relocated_piece.position) {
+            let collision = board.is_occupied(&relocated_piece.position);
+            let at_bottom = board.is_at_the_bottom(&relocated_piece.position);
+
+            let return_piece =
+                if collision {
+                    // if there's been a collision, the piece should stay at its previous location
+                    *piece
+                }  else {
+                    // if there's been no collision or if it's at the bottom, the translation
+                    // is valid
+                    relocated_piece
+                };
+
+            let piece_settled = collision || at_bottom;
+            (return_piece, piece_settled)
+
+        } else {
+            // um...do something
+            panic!("No idea why we got here...");
+        }
+    }
+
     pub fn run_loop<R: Rng>(&mut self, input: &Input, rng: &mut R) -> GameState {
         match self.state {
             GameState::GameOver => return self.state,
             _ => {},
         }
+
+        let valid_piece_location = |p: &Piece| { 
+            self.board.is_tetrimino_within_bounds(&p.position) &&
+            !self.board.is_occupied(&p.position)
+        };
 
         // reset render info
         self.render_info = Default::default();
@@ -132,27 +199,17 @@ impl Game {
         if self.translation_cooldown_counter > 0 {
             self.translation_cooldown_counter -= 1;
         } else { // counter is u32, so hitting this branch means it's equal to zero
-            let translated_piece = 
-                if input.left && !input.right {
-                    Some(self.current_piece.move_left())
-                } else if input.right && !input.left {
-                    Some(self.current_piece.move_right())
-                } else {
-                    None
-                };
+            let translated_piece = Game::handle_horizontal_input(
+                                               &input,
+                                               &self.current_piece,
+                                               valid_piece_location);
 
-            // if the translate piece is within the playfield
-            // and it doesn't collide with any of the pieces on the board
-            // accept the translation
             if let Some(candidate) = translated_piece {
-                if self.board.is_tetrimino_within_bounds(&candidate.position) &&
-                !self.board.is_occupied(&candidate.position) {
-                    // update the current piece information
-                    self.current_piece = candidate;
-                    // only apply the translation cooldown if the piece
-                    // has successfully been moved
-                    self.translation_cooldown_counter = COOLDOWN;
-                }
+                // update the current piece information
+                self.current_piece = candidate;
+                // only apply the translation cooldown if the piece
+                // has successfully been moved
+                self.translation_cooldown_counter = COOLDOWN;
             }
         }
 
@@ -163,24 +220,17 @@ impl Game {
         if self.rotation_cooldown_counter > 0 {
             self.rotation_cooldown_counter -= 1;
         } else { // counter is u32, so hitting this branch means it's equal to zero
-            let rotated_piece = 
-                if input.cw_rotate && !input.ccw_rotate {
-                    Some(self.current_piece.cw_rot())
-                } else if input.ccw_rotate && !input.cw_rotate {
-                    Some(self.current_piece.ccw_rot())
-                } else {
-                    None
-                };
+            let rotated_piece = Game::handle_rotation_input(
+                                            &input,
+                                            &self.current_piece,
+                                            valid_piece_location);
 
             if let Some(candidate) = rotated_piece {
-                if self.board.is_tetrimino_within_bounds(&candidate.position) &&
-                   !self.board.is_occupied(&candidate.position) {
-                    // update the current piece information
-                    self.current_piece = candidate;
-                    // only apply the rotation cooldown if the piece
-                    // has successfully been rotated
-                    self.rotation_cooldown_counter = COOLDOWN;
-                }
+                // update the current piece information
+                self.current_piece = candidate;
+                // only apply the rotation cooldown if the piece
+                // has successfully been rotated
+                self.rotation_cooldown_counter = COOLDOWN;
             }
         }
 
@@ -203,94 +253,71 @@ impl Game {
                 };
 
             // reset internal displacement
-            self.displacement = 0.0;
+            self.displacement = if input.down { 0.0 } else { self.displacement - displacement as f32 };
 
-            let candidate = self.current_piece.apply_gravity(displacement);
-            let new_position = candidate.position;
 
-            if self.board.is_tetrimino_within_bounds(&new_position) {
-                // if the new position is occupied, then that means we should be "settled" at our
-                // current state
-                // OR if it hits the bottom
-                let collision = self.board.is_occupied(&new_position);
-                let at_bottom = self.board.is_at_the_bottom(&new_position);
+            let (updated_piece, is_settled) = Game::handle_vertical_movement(
+                                                          &self.current_piece,
+                                                          &self.board,
+                                                          displacement);
 
-                let possibly_settled_piece = 
-                    if collision {
-                        Some(self.current_piece)
-                    } else if at_bottom {
-                        Some(candidate)
+            if is_settled {
+                // add the piece to the board
+                let y_range = self.board.add_piece(&updated_piece);
+
+                // determine how many lines were cleraed after adding this piece
+                let lines_cleared = self.board.clear_lines(y_range);
+
+                // update the score based on the number of lines cleared
+                self.score +=
+                    if lines_cleared == 1 {
+                        1
+                    } else if lines_cleared == 2 {
+                        3
+                    } else if lines_cleared == 3 {
+                        5
+                    } else if lines_cleared == 4 {
+                        8
                     } else {
-                        None
+                        0
                     };
 
-                if let Some(settled_piece) = possibly_settled_piece {
-                    // add the piece to the board
-                    let y_range = self.board.add_piece(&settled_piece);
-
-                    // determine how many lines were cleared after adding the piece
-                    let lines_cleared = self.board.clear_lines(y_range);
-
-                    // update the score based on the number of lines cleared
-                    self.score +=
-                        if lines_cleared == 1 {
-                            1
-                        } else if lines_cleared == 2 {
-                            3
-                        } else if lines_cleared == 3 {
-                            5
-                        } else if lines_cleared == 4 {
-                            8
-                        } else {
-                            0
-                        };
-
-                    // see if we need to go to the next level
-                    let off_to_a_new_level = self.score > self.next_level_score && self.level < 15;
-                    if off_to_a_new_level {
-                        self.level += 1;
-                        self.next_level_score += 5 * (self.level+1) as u32;
-                    }
-
-                    // save render info
-                    // TODO: can we make the render info only get compiled if performing a
-                    //       parial redraw?
-                    let lines_were_cleared = lines_cleared > 0; // intermediate variable to shorten line length
-                    self.render_info.lines_cleared = lines_were_cleared;
-                    self.render_info.new_score = if lines_were_cleared { Some(self.score) } else { None };
-                    self.render_info.new_level = if off_to_a_new_level { Some(self.level) } else { None };
-                    // save the position of these pieces for the next render cycle
-                    self.render_info.newly_settled_pieces = Some(settled_piece.position);
-
-                    // move to the next piece
-                    self.piece_index += 1;
-                    // if all of the pieces have been used, shuffle the pieces
-                    if self.piece_index == self.pieces.len() {
-                        // do a knuth shuffle to create a permutation of the pieces
-                        for i in 0..self.pieces.len() {
-                            let index = rng.next();
-                            if index != i {
-                                // swap i and index
-                                let temp = self.pieces[i];
-                                self.pieces[i] = self.pieces[index];
-                                self.pieces[index] = temp;
-                            }
-                        }
-                        // reset the index
-                        self.piece_index = 0;
-                    }
-                    // set new current piece
-                    self.current_piece = self.pieces[self.piece_index];
-                } else {
-                    // current piece did not collide with existing tetriminoes
-                    // and did not hit the bottom...it may continue its descent
-                    self.current_piece = candidate;
+                let off_to_a_new_level = self.score > self.next_level_score && self.level < 15;
+                if off_to_a_new_level {
+                    self.level += 1;
+                    self.next_level_score += 5 * (self.level + 1) as u32;
                 }
+                // save render info
+                // TODO: can we make the render info only get compiled if performing a
+                //       parial redraw?
+                let lines_were_cleared = lines_cleared > 0; // intermediate variable to shorten line length
+                self.render_info.lines_cleared = lines_were_cleared;
+                self.render_info.new_score = if lines_were_cleared { Some(self.score) } else { None };
+                self.render_info.new_level = if off_to_a_new_level { Some(self.level) } else { None };
+                // save the position of these pieces for the next render cycle
+                self.render_info.newly_settled_pieces = Some(updated_piece.position);
+
+                // move to the next piece
+                self.piece_index += 1;
+                // if all of the pieces have been used, shuffle the pieces
+                if self.piece_index == self.pieces.len() {
+                    // do a knuth shuffle to create a permutation of the pieces
+                    for i in 0..self.pieces.len() {
+                        let index = rng.next();
+                        if index != i {
+                            // swap i and index
+                            let temp = self.pieces[i];
+                            self.pieces[i] = self.pieces[index];
+                            self.pieces[index] = temp;
+                        }
+                    }
+                    // reset the index
+                    self.piece_index = 0;
+                }
+                // set new current piece
+                self.current_piece = self.pieces[self.piece_index];
             } else {
-                // tetrimino is outside of the bounds, which means it is past the bottom
-                // println!("I don't think you should ever see this...");
-                // Actually, I do think this could happen at the higher levels
-                // println!("new position: {:?}", new_position);
+                self.current_piece = updated_piece;
             }
         }
 
@@ -426,3 +453,158 @@ impl Game {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn translation_allowed_when_predicate_yields_true() {
+
+        let piece = PIECE_TYPES[0];
+
+        let all_translations_allowed = |_p: &Piece| true;
+
+        let input = Input {
+            left: false,
+            right: true,
+            down: false,
+            cw_rotate: false,
+            ccw_rotate: false,
+        };
+
+        let updated_piece = Game::handle_horizontal_input(&input, &piece, all_translations_allowed).unwrap();
+
+        // don't check the actual value of the translation
+        // just ensure that the positions are different
+        assert_ne!(updated_piece.position, piece.position);
+    }
+
+    #[test]
+    fn translation_inhibited_when_predicate_yields_false() {
+        let piece = PIECE_TYPES[0];
+
+        let no_translation_allowed = |_p: &Piece| false;
+
+        let input = Input {
+            left: false,
+            right: true,
+            down: false,
+            cw_rotate: false,
+            ccw_rotate: false,
+        };
+
+        let updated_piece = Game::handle_horizontal_input(&input, &piece, no_translation_allowed);
+
+        assert_eq!(updated_piece, None);
+    }
+
+    #[test]
+    fn no_translation_if_both_inputs_true() {
+        let piece = PIECE_TYPES[0];
+
+        let all_translation_allowed = |_p: &Piece| true;
+
+        let input = Input {
+            left: true,
+            right: true,
+            down: false,
+            cw_rotate: false,
+            ccw_rotate: false,
+        };
+
+        let updated_piece = Game::handle_horizontal_input(&input, &piece, all_translation_allowed);
+
+        assert_eq!(updated_piece, None);
+    }
+
+    #[test]
+    fn rotation_inhibited_when_predicate_yields_false() {
+        let piece = PIECE_TYPES[0];
+
+        let no_rotation_allowed = |_p: &Piece| false;
+
+        let input = Input {
+            left: false,
+            right: false,
+            down: false,
+            cw_rotate: true,
+            ccw_rotate: false,
+        };
+
+        let updated_piece = Game::handle_rotation_input(&input, &piece, no_rotation_allowed);
+
+        assert_eq!(updated_piece, None);
+    }
+
+    #[test]
+    fn rotation_allowed_when_predicate_yields_true() {
+        let mut piece = PIECE_TYPES[0];
+        for c in piece.position.iter_mut() {
+            // rotating while at the top of the screen would place
+            // the piece outside 
+            c.y -= 5;
+        }
+
+        let all_rotation_allowed = |_p: &Piece| true;
+
+        let input = Input {
+            left: false,
+            right: false,
+            down: false,
+            cw_rotate: true,
+            ccw_rotate: false,
+        };
+
+        let updated_piece = Game::handle_rotation_input(&input, &piece, all_rotation_allowed).unwrap();
+
+        // don't check the rotated value, the rotations are verified in other tests
+        // just make sure that the rotated value differs from the original value
+        assert_ne!(updated_piece, piece);
+    }
+
+    #[test]
+    fn no_rotation_if_both_inputs_true() {
+        let piece = PIECE_TYPES[0];
+
+        let all_rotation_allowed = |_p: &Piece| true;
+
+        let input = Input {
+            left: false,
+            right: false,
+            down: false,
+            cw_rotate: true,
+            ccw_rotate: true,
+        };
+
+        let updated_piece = Game::handle_rotation_input(&input, &piece, all_rotation_allowed);
+
+        assert_eq!(updated_piece, None);
+    }
+
+    #[test]
+    fn fast_moving_piece_settles_appropriately() {
+        let mut board = Board::new();
+
+        let y = 19;
+        for x in 0..10 { // board is 10 tetriminos wide
+            board.add_tetrimino_at(x, y, TetriminoType::I);
+        }
+
+        let piece = PIECE_TYPES[0]; // this is the I type, which spawns at y = 20;
+
+        let displacement = 15; // set a ridiculous displacement
+
+        let (updated_piece, is_settled) = Game::handle_vertical_movement(&piece, &board, displacement);
+
+        // check to see if the piece settled
+        assert_eq!(is_settled, true);
+
+        // check to see if it settled in the right location
+        assert_eq!(updated_piece.position[0].y, 20);
+        assert_eq!(updated_piece.position[1].y, 20);
+        assert_eq!(updated_piece.position[2].y, 20);
+        assert_eq!(updated_piece.position[3].y, 20);
+    }
+}
+
