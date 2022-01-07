@@ -149,8 +149,38 @@ impl Game {
         rotated_piece.filter(accept_new_position)
     }
 
+    // TODO: try to make less ugly
     fn handle_vertical_movement(piece: &Piece, board: &Board, displacement: u32)
         -> (Piece, bool) {
+        let mut relocated_piece = *piece;
+        let mut is_settled = false;
+        for y in 1..=displacement {
+            let previous_piece = relocated_piece;
+            relocated_piece = relocated_piece.apply_gravity(1);
+
+            if board.is_tetrimino_within_bounds(&relocated_piece.position) {
+                let collision = board.is_occupied(&relocated_piece.position);
+                let at_bottom = board.is_at_the_bottom(&relocated_piece.position);
+
+                relocated_piece  =
+                    if collision {
+                        // if there's been a collision, the piece should stay at its previous location
+                        previous_piece
+                    }  else {
+                        // if there's been no collision or if it's at the bottom, the translation
+                        // is valid
+                        relocated_piece
+                    };
+
+                is_settled = collision || at_bottom;
+                if is_settled {
+                    break;
+                }
+            }
+        }
+
+        (relocated_piece, is_settled)
+        /*
         let relocated_piece = piece.apply_gravity(displacement);
 
         if board.is_tetrimino_within_bounds(&relocated_piece.position) {
@@ -174,6 +204,7 @@ impl Game {
             // um...do something
             panic!("No idea why we got here...");
         }
+        */
     }
 
     pub fn run_loop<R: Rng>(&mut self, input: &Input, rng: &mut R) -> GameState {
