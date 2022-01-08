@@ -6,6 +6,9 @@ use crate::game_renderer::GameRenderer;
 use crate::rng::Rng;
 
 #[derive(Default)]
+/// A structure used to hold rendering information
+/// for `GameRenderer` implementations that use the
+/// `partial_draw` mode.
 struct RenderInfo {
     previous_piece_pos: Option<[Coord; 4]>,
     newly_settled_pieces: Option<[Coord; 4]>,
@@ -15,6 +18,7 @@ struct RenderInfo {
 }
 
 #[derive(Default)]
+/// Represents the different types of user input possible.
 pub struct Input {
     /// true when user attempts to move the piece left
     pub left: bool,
@@ -28,6 +32,8 @@ pub struct Input {
     pub ccw_rotate: bool,
 }
 
+/// Used to provide a wait between certain user inputs.
+/// This is used for rotations and translations.
 const COOLDOWN : u32 = 10;
 
 pub struct Game {
@@ -58,9 +64,9 @@ pub struct Game {
     render_info: RenderInfo,
 }
 
-// 1 unit of gravity = moving one cell
-// these are the gravity constants for 60 fps
-// source: https://harddrop.com/wiki/Tetris_Worlds
+/// 1 unit of gravity = moving one cell
+/// these are the gravity constants for 60 fps
+/// source: https://harddrop.com/wiki/Tetris_Worlds
 const GRAVITY : [f32; 15] = [
     0.01667,
     0.021017,
@@ -78,15 +84,19 @@ const GRAVITY : [f32; 15] = [
     1.46,
     2.36,
 ];
+
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// Represents whether the game is over or in play.
 pub enum GameState {
     Playing,
     GameOver,
 }
 
 impl Game {
+    /// Creates a new game "instance."
     pub fn new<R: Rng>(rng: &mut R) -> Self {
         let mut tets = PIECE_TYPES;
+        // shuffle the pieces randomly
         // do a knuth shuffle to permuate the pieces
         for i in 0..tets.len() {
             let index = rng.next();
@@ -115,6 +125,7 @@ impl Game {
     }
 
     #[cfg(test)]
+    /// A helper constructor for testing.
     fn new_test() -> Game {
         Game {
             pieces: PIECE_TYPES,
@@ -132,6 +143,7 @@ impl Game {
         }
     }
 
+    /// Processes input for horizontal input. 
     fn handle_horizontal_input<P>(input: &Input, piece: &Piece, accept_new_position: P) 
         -> Option<Piece> where 
         P : Fn(&Piece) -> bool {
@@ -150,6 +162,7 @@ impl Game {
         translated_piece.filter(accept_new_position) 
     }
 
+    /// Processes input for rotation input. 
     fn handle_rotation_input<P>(input: &Input, piece: &Piece, accept_new_position: P)
         -> Option<Piece> where 
         P : Fn(&Piece) -> bool {
@@ -168,6 +181,8 @@ impl Game {
     }
 
     // TODO: try to make less ugly
+    /// Processes vertical movement - checks for collisions and pieces hitting
+    /// the bottom of the playfield.
     fn handle_vertical_movement(piece: &Piece, board: &Board, displacement: u32)
         -> (Piece, bool) {
         let mut relocated_piece = *piece;
@@ -198,33 +213,9 @@ impl Game {
         }
 
         (relocated_piece, is_settled)
-        /*
-        let relocated_piece = piece.apply_gravity(displacement);
-
-        if board.is_tetrimino_within_bounds(&relocated_piece.position) {
-            let collision = board.is_occupied(&relocated_piece.position);
-            let at_bottom = board.is_at_the_bottom(&relocated_piece.position);
-
-            let return_piece =
-                if collision {
-                    // if there's been a collision, the piece should stay at its previous location
-                    *piece
-                }  else {
-                    // if there's been no collision or if it's at the bottom, the translation
-                    // is valid
-                    relocated_piece
-                };
-
-            let piece_settled = collision || at_bottom;
-            (return_piece, piece_settled)
-
-        } else {
-            // um...do something
-            panic!("No idea why we got here...");
-        }
-        */
     }
 
+    /// The main loop for the game.
     pub fn run_loop<R: Rng>(&mut self, input: &Input, rng: &mut R) -> GameState {
         match self.state {
             GameState::GameOver => return self.state,
@@ -389,10 +380,12 @@ impl Game {
         }
     }
 
+    /// Reports the current score.
     pub fn score(&self) -> u32 {
         self.score
     }
 
+    /// Reports the current level.
     pub fn level(&self) -> u8 {
         self.level as u8
     }
@@ -409,6 +402,7 @@ impl Game {
     compile_error!("feature \"partial_redraw\" and feature \"full_redraw\" cannot be enabled at the same time");
 
     #[cfg(feature="partial_redraw")]
+    /// The function for drawing in the case of a renderer that performs partial redraws.
     fn _draw<G: GameRenderer>(&self, renderer: &mut G) {
 
         if let Some(score) = self.render_info.new_score {
@@ -470,6 +464,7 @@ impl Game {
 
 
     #[cfg(feature="full_redraw")]
+    /// The function for drawing in the case of a renderer that performs full redraws.
     pub fn _draw<G: GameRenderer>(&self, renderer: &mut G) {
         renderer.draw_board();
         renderer.draw_score(self.score);
@@ -503,6 +498,7 @@ impl Game {
 }
 
 #[cfg(test)]
+/// Test methods
 mod tests {
     use super::*;
 
@@ -655,7 +651,7 @@ mod tests {
         assert_eq!(updated_piece.position[3].y, 20);
     }
 
-    // Rng implementation that doesn't shuffle anything
+    /// Rng implementation that doesn't shuffle anything
     struct Randy {
         indexes: [usize; 7],
         i: usize,

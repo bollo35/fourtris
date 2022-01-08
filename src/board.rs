@@ -19,17 +19,22 @@ impl Board {
         }
     }
 
+    /// Returns the `TetriminoType` at the specified xy coordinate.
     pub fn tetrimino_type_at(&self, x: u8, y: u8) -> TetriminoType {
         self.content[y as usize][x as usize]
     }
 
-    // 
+    /// Checks to see if a set of coordinates are within the accepted
+    /// bounds of the playfield. In order to support moving a piece
+    /// on the last row, a y-value of -1 is considered within the
+    /// bounds of the playfield.
     pub fn is_tetrimino_within_bounds(&self, coords: &[Coord; 4]) -> bool {
         coords.iter().all(|&c| 0 <= c.x && c.x < BOARD_WIDTH as i32 && 
                                -1 <= c.y && c.y < BOARD_HEIGHT as i32)
     }
 
     #[cfg(test)]
+    /// A helper function allowing random write access to the board for testing.
     pub fn add_tetrimino_at(&mut self, x: usize, y: usize, tet_type: TetriminoType) {
         if x < BOARD_WIDTH && y < BOARD_HEIGHT {
             self.content[y][x] = tet_type;
@@ -40,6 +45,8 @@ impl Board {
 
     // THIS FUNCTION SHOULD ONLY BE CALLED AFTER VERIFYING THAT
     // THE COORDINATES ARE WITHIN THE BOARD SIZE
+    /// Returns `true` if any of the tetriminos in a piece are already
+    /// occupied in the board.
     pub fn is_occupied(&self, coords: &[Coord; 4]) -> bool {
         // would these coordinates overlap with 
         // any of the pieces already settled on the board?
@@ -54,6 +61,8 @@ impl Board {
         })
     }
 
+    /// Returns `true` if any of the tetriminos in a piece are at the
+    /// bottom of the board.
     pub fn is_at_the_bottom(&self, coords: &[Coord; 4]) -> bool {
         // at least one y coordinate should be equal to -1
         // and none of the coordinates should be less than -1
@@ -61,6 +70,9 @@ impl Board {
         coords.iter().any(|&c| c.y == -1) && !coords.iter().any(|&c| c.y < -1)
     }
 
+    /// Adds a piece to the board at the coordinates.
+    /// Returns the range of y-values occupied by the piece.
+    /// The y-values constrain the search for lines to remove.
     pub fn add_piece(&mut self, piece: &Piece) -> Range<usize> {
         let tet_type = 
             match piece.piece_type {
@@ -97,6 +109,9 @@ impl Board {
         (y_min as usize)..((y_max + 1) as usize)
     }
 
+    /// Updates the board by clearing any full lines within
+    /// the specified y-range.
+    /// Returns the number of lines cleared.
     pub fn clear_lines(&mut self, y_range: Range<usize>) -> u32 {
         // this will hold the indices of lines to be removed
         // at most 4 lines will be removed
@@ -148,6 +163,9 @@ impl Board {
         lines_cleared
     }
 
+    /// Checks to see if the board has any pieces basically at
+    /// the top of the board.
+    /// Returns `true` if this is the case.
     pub fn is_board_full(&self) -> bool {
         self.content[BOARD_HEIGHT - 3].iter().any(|&c| c != TetriminoType::EmptySpace)
     }
