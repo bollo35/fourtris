@@ -693,9 +693,12 @@ mod tests {
 
         input.left = true;
 
-        // run iteration of the main loop
+        // run one more iteration of the main loop
+        // the piece should be settled after this
+        // iteration
         let _ = game.run_loop(&input, &mut randy);
 
+        // make sure the piece has been added to the playfield
         assert_ne!(game.board.tetrimino_type_at(5, 0), TetriminoType::EmptySpace);
         assert_ne!(game.board.tetrimino_type_at(4, 0), TetriminoType::EmptySpace);
         assert_ne!(game.board.tetrimino_type_at(3, 0), TetriminoType::EmptySpace);

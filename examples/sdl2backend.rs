@@ -10,8 +10,8 @@ use sdl2::ttf::Font;
 
 extern crate rand;
 use rand::Rng;
-use tetris::game::{Game, GameState, Input};
-use tetris::game_renderer::{GameRenderer, TetriminoType};
+use fourtris::game::{Game, GameState, Input};
+use fourtris::game_renderer::{GameRenderer, TetriminoType};
 
 use std::time::Duration;
 use std::path::Path;
@@ -40,7 +40,7 @@ impl Randy {
     }
 }
 
-impl tetris::rng::Rng for Randy {
+impl fourtris::rng::Rng for Randy {
     fn next(&mut self) -> usize {
         self.rng.gen_range(0..7)
     }
