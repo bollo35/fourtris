@@ -197,11 +197,10 @@ impl Game {
 
                 relocated_piece  =
                     if collision || at_bottom {
-                        // if there's been a collision, the piece should stay at its previous location
+                        // if there's been a collision or the piece is at the bottom (really one past the bottom), the piece should stay at its previous location
                         previous_piece
                     }  else {
-                        // if there's been no collision or if it's at the bottom, the translation
-                        // is valid
+                        // otherwise, the translation is valid
                         relocated_piece
                     };
 
@@ -304,7 +303,7 @@ impl Game {
                 // add the piece to the board
                 let y_range = self.board.add_piece(&updated_piece);
 
-                // determine how many lines were cleraed after adding this piece
+                // determine how many lines were cleared after adding this piece
                 let lines_cleared = self.board.clear_lines(y_range);
 
                 // update the score based on the number of lines cleared
