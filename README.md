@@ -34,3 +34,7 @@ To run the example program, type:
 
 
 Enjoy!
+
+## License
+
+MIT License
