@@ -182,7 +182,7 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
 
-    let window = video_subsystem.window("Kinda Tetris", WINDOW_WIDTH, WINDOW_HEIGHT)
+    let window = video_subsystem.window("Fourtris", WINDOW_WIDTH, WINDOW_HEIGHT)
         .position_centered()
         .build()
         .unwrap();
