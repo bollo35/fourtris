@@ -114,6 +114,24 @@ impl Game {
         }
     }
 
+    #[cfg(test)]
+    fn new_test() -> Game {
+        Game {
+            pieces: PIECE_TYPES,
+            current_piece: PIECE_TYPES[0],
+            board: Board::new(),
+            piece_index: 0,
+            state: GameState::Playing,
+            displacement: 0.0,
+            level: 1,
+            score: 0,
+            next_level_score: 5,
+            rotation_cooldown_counter: 0,
+            translation_cooldown_counter: 0,
+            render_info: Default::default(),
+        }
+    }
+
     fn handle_horizontal_input<P>(input: &Input, piece: &Piece, accept_new_position: P) 
         -> Option<Piece> where 
         P : Fn(&Piece) -> bool {
@@ -154,7 +172,7 @@ impl Game {
         -> (Piece, bool) {
         let mut relocated_piece = *piece;
         let mut is_settled = false;
-        for y in 1..=displacement {
+        for _ in 1..=displacement {
             let previous_piece = relocated_piece;
             relocated_piece = relocated_piece.apply_gravity(1);
 
@@ -163,7 +181,7 @@ impl Game {
                 let at_bottom = board.is_at_the_bottom(&relocated_piece.position);
 
                 relocated_piece  =
-                    if collision {
+                    if collision || at_bottom {
                         // if there's been a collision, the piece should stay at its previous location
                         previous_piece
                     }  else {
@@ -268,7 +286,6 @@ impl Game {
         // -----------------------
         //    VERTICAL MOVEMENT
         // -----------------------
-
         self.displacement += GRAVITY[self.level-1];
 
         if (self.displacement as u32) > 0 || input.down {
@@ -622,7 +639,7 @@ mod tests {
             board.add_tetrimino_at(x, y, TetriminoType::I);
         }
 
-        let piece = PIECE_TYPES[0]; // this is the I type, which spawns at y = 20;
+        let piece = PIECE_TYPES[0]; // this is the I type, which spawns at y = 20
 
         let displacement = 15; // set a ridiculous displacement
 
@@ -637,5 +654,55 @@ mod tests {
         assert_eq!(updated_piece.position[2].y, 20);
         assert_eq!(updated_piece.position[3].y, 20);
     }
-}
 
+    // Rng implementation that doesn't shuffle anything
+    struct Randy {
+        indexes: [usize; 7],
+        i: usize,
+    }
+
+    impl Randy {
+        fn new() -> Randy {
+            Randy {
+                indexes: [0, 1, 2, 3, 4, 5, 6],
+                i: 0,
+            }
+        }
+    }
+
+    impl Rng for Randy {
+        fn next(&mut self) -> usize {
+            let r = self.indexes[self.i];
+            self.i = (self.i + 1) % 6;
+            r
+        }
+    }
+
+    #[test]
+    fn piece_can_move_horizontally_on_the_last_row() {
+        let mut game = Game::new_test();
+        
+        let mut input = Input {
+            down: true,
+            .. Default::default()
+        };
+
+        let mut randy = Randy::new();
+
+        // run 20 iterations of the game to move the piece to the bottom
+        // NOTE: the first piece chosen is the I piece
+        for _ in 0..20 {
+            let _ = game.run_loop(&input, &mut randy);
+        }
+
+        input.left = true;
+
+        // run iteration of the main loop
+        let _ = game.run_loop(&input, &mut randy);
+
+        assert_ne!(game.board.tetrimino_type_at(5, 0), TetriminoType::EmptySpace);
+        assert_ne!(game.board.tetrimino_type_at(4, 0), TetriminoType::EmptySpace);
+        assert_ne!(game.board.tetrimino_type_at(3, 0), TetriminoType::EmptySpace);
+        assert_ne!(game.board.tetrimino_type_at(2, 0), TetriminoType::EmptySpace);
+    }
+}

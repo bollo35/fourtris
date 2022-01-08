@@ -23,9 +23,10 @@ impl Board {
         self.content[y as usize][x as usize]
     }
 
+    // 
     pub fn is_tetrimino_within_bounds(&self, coords: &[Coord; 4]) -> bool {
         coords.iter().all(|&c| 0 <= c.x && c.x < BOARD_WIDTH as i32 && 
-                               0 <= c.y && c.y < BOARD_HEIGHT as i32)
+                               -1 <= c.y && c.y < BOARD_HEIGHT as i32)
     }
 
     #[cfg(test)]
@@ -44,13 +45,20 @@ impl Board {
         // any of the pieces already settled on the board?
         // NOTE: the cast only holds if the coordinates have already been
         //       verified to be within the borders of the game board
-        coords.iter().any(|&c| self.content[c.y as usize][c.x as usize] != TetriminoType::EmptySpace)
+        coords.iter().any(|&c| { 
+            if c.y < 0 {
+                return false
+            } else {
+                self.content[c.y as usize][c.x as usize] != TetriminoType::EmptySpace
+            }
+        })
     }
 
     pub fn is_at_the_bottom(&self, coords: &[Coord; 4]) -> bool {
-        // at least one y coordinate should be equal to zero
-        // and none of the coordinates should be less than zero
-        coords.iter().any(|&c| c.y == 0) && !coords.iter().any(|&c| c.y < 0)
+        // at least one y coordinate should be equal to -1
+        // and none of the coordinates should be less than -1
+        // -1 is used to allow for movement on the last row
+        coords.iter().any(|&c| c.y == -1) && !coords.iter().any(|&c| c.y < -1)
     }
 
     pub fn add_piece(&mut self, piece: &Piece) -> Range<usize> {
