@@ -162,11 +162,4 @@ impl Board {
 
         lines_cleared
     }
-
-    /// Checks to see if the board has any pieces basically at
-    /// the top of the board.
-    /// Returns `true` if this is the case.
-    pub fn is_board_full(&self) -> bool {
-        self.content[BOARD_HEIGHT - 3].iter().any(|&c| c != TetriminoType::EmptySpace)
-    }
 }

@@ -370,7 +370,10 @@ impl Game {
             };
 
         // Is the game over?
-        if self.board.is_board_full() {
+        // We can tell this by whether or not the piece is overlapping with something on the board
+        // now. That should only be the case if we've spawned a new piece and it immediately
+        // settled.
+        if self.board.is_occupied(&self.current_piece.position) {
             self.state = GameState::GameOver;
             GameState::GameOver
         } else {
