@@ -40,6 +40,12 @@ impl Randy {
     }
 }
 
+impl Default for Randy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl fourtris::rng::Rng for Randy {
     fn next(&mut self) -> usize {
         self.rng.gen_range(0..7)
@@ -233,15 +239,12 @@ fn main() {
         // run the game loop
         let state = game.run_loop(&input, &mut randy);
 
-        match state {
-            GameState::GameOver =>  {
-                println!("GAME OVER MAN!");
-                println!("You made it to level {}", game.level());
-                println!("Final score: {}", game.score());
-                break 'playing;
-            },
-            _ => {},
-        };
+        if state == GameState::GameOver {
+            println!("GAME OVER MAN!");
+            println!("You made it to level {}", game.level());
+            println!("Final score: {}", game.score());
+            break 'playing;
+        }
 
         // create a scope so I can borrow mutably
         {

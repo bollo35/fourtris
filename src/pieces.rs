@@ -35,13 +35,13 @@ pub enum Orientation {
 /// Represents the 7 pieces.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PieceType {
-    IType(Orientation), 
-    OType,
-    JType,
-    LType,
-    SType,
-    ZType,
-    TType,
+    I(Orientation), 
+    O,
+    J,
+    L,
+    S,
+    Z,
+    T,
 }
 
 // ---------------------------------------------------------------
@@ -147,7 +147,7 @@ fn add_offset(coords: &[Coord; 4], offset: Coord) -> [Coord; 4] {
 /// Returns an array of Coord all relative to the center point (i.e., the first point in the array)
 fn make_relative(coords: &[Coord; 4]) -> [Coord; 4] {
     let center_point = coords[0];
-    add_offset(&coords, Coord { x: -center_point.x, y: -center_point.y})
+    add_offset(coords, Coord { x: -center_point.x, y: -center_point.y})
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -182,7 +182,7 @@ impl Piece {
 
     /// Calculate the new location of a piece if moved down by one space
     pub fn apply_gravity(&self, displacement: u32) -> Piece {
-        let offset = Coord { x: 0, y: -1 * displacement as i32 };
+        let offset = Coord { x: 0, y: -(displacement as i32) };
 
         Piece {
             position: add_offset(&self.position, offset),
@@ -208,15 +208,15 @@ impl Piece {
               Coord {x: relative_coords[3].y, y: -relative_coords[3].x} ];
 
         match self.piece_type {
-           PieceType::IType(orientation) => {
+           PieceType::I(orientation) => {
                let offset = I_CW_OFFSETS[orientation as usize];
                let new_position = add_offset(&rel_rotated_coords, offset + center_coord);
                let new_piece_type = 
                    match orientation {
-                       Orientation::HorizontalDown => PieceType::IType(Orientation::VerticalLeft),
-                       Orientation::VerticalLeft   => PieceType::IType(Orientation::HorizontalUp),
-                       Orientation::HorizontalUp   => PieceType::IType(Orientation::VerticalRight),
-                       Orientation::VerticalRight  => PieceType::IType(Orientation::HorizontalDown),
+                       Orientation::HorizontalDown => PieceType::I(Orientation::VerticalLeft),
+                       Orientation::VerticalLeft   => PieceType::I(Orientation::HorizontalUp),
+                       Orientation::HorizontalUp   => PieceType::I(Orientation::VerticalRight),
+                       Orientation::VerticalRight  => PieceType::I(Orientation::HorizontalDown),
                    };
 
                Piece {
@@ -224,9 +224,9 @@ impl Piece {
                    position: new_position,
                }
            },
-           PieceType::OType => {
+           PieceType::O => {
                // why would you try to rotate a square??
-               self.clone()
+               *self
            },
            _ => {
                let new_position = add_offset(&rel_rotated_coords, center_coord);
@@ -253,7 +253,7 @@ impl Piece {
               Coord {x: -relative_coords[3].y, y: relative_coords[3].x} ];
 
         match self.piece_type {
-           PieceType::IType(orientation) => {
+           PieceType::I(orientation) => {
                let cw_offset = I_CW_OFFSETS[orientation as usize];
                // the offset when rotating counter clockwise, happens to the be 90 degree clockwise
                // rotation of the clockwise offset. If you want to prove it to yourself, just draw
@@ -262,10 +262,10 @@ impl Piece {
                let new_position = add_offset(&rel_rotated_coords, center_coord + offset);
                let new_piece_type = 
                    match orientation {
-                       Orientation::HorizontalDown => PieceType::IType(Orientation::VerticalRight),
-                       Orientation::VerticalLeft   => PieceType::IType(Orientation::HorizontalDown),
-                       Orientation::HorizontalUp   => PieceType::IType(Orientation::VerticalLeft),
-                       Orientation::VerticalRight  => PieceType::IType(Orientation::HorizontalUp),
+                       Orientation::HorizontalDown => PieceType::I(Orientation::VerticalRight),
+                       Orientation::VerticalLeft   => PieceType::I(Orientation::HorizontalDown),
+                       Orientation::HorizontalUp   => PieceType::I(Orientation::VerticalLeft),
+                       Orientation::VerticalRight  => PieceType::I(Orientation::HorizontalUp),
                    };
 
                Piece {
@@ -273,9 +273,9 @@ impl Piece {
                    position: new_position,
                }
            },
-           PieceType::OType => {
+           PieceType::O => {
                // why would you try to rotate a square??
-               self.clone()
+               *self
            },
            _ => {
                let new_position = add_offset(&rel_rotated_coords, center_coord);
@@ -287,19 +287,19 @@ impl Piece {
 }
 
 pub const PIECE_TYPES : [Piece; 7] = [
-    Piece { piece_type: PieceType::IType(Orientation::HorizontalDown),
+    Piece { piece_type: PieceType::I(Orientation::HorizontalDown),
                 position: I_COORDS, },
-    Piece { piece_type: PieceType::OType,
+    Piece { piece_type: PieceType::O,
                 position: O_COORDS, },
-    Piece { piece_type: PieceType::JType,
+    Piece { piece_type: PieceType::J,
                 position: J_COORDS, },
-    Piece { piece_type: PieceType::LType,
+    Piece { piece_type: PieceType::L,
                 position: L_COORDS, },
-    Piece { piece_type: PieceType::SType,
+    Piece { piece_type: PieceType::S,
                 position: S_COORDS, },
-    Piece { piece_type: PieceType::ZType,
+    Piece { piece_type: PieceType::Z,
                 position: Z_COORDS, },
-    Piece { piece_type: PieceType::TType,
+    Piece { piece_type: PieceType::T,
                 position: T_COORDS, },
 ];
 
@@ -466,7 +466,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::IType(Orientation::VerticalLeft),
+                piece_type: PieceType::I(Orientation::VerticalLeft),
                 position: [
                     Coord { x: 4, y: 19 }, // d
                     Coord { x: 4, y: 20 }, // c
@@ -498,7 +498,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::IType(Orientation::HorizontalUp),
+                piece_type: PieceType::I(Orientation::HorizontalUp),
                 position: [
                     Coord { x: 3, y: 21 }, // d
                     Coord { x: 4, y: 21 }, // c
@@ -530,7 +530,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::IType(Orientation::VerticalRight),
+                piece_type: PieceType::I(Orientation::VerticalRight),
                 position: [
                     Coord { x: 5, y: 22 }, // d
                     Coord { x: 5, y: 21 }, // c
@@ -577,7 +577,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::IType(Orientation::VerticalRight),
+                piece_type: PieceType::I(Orientation::VerticalRight),
                 position: [
                     Coord { x: 5, y: 22 }, // d
                     Coord { x: 5, y: 21 }, // c
@@ -609,7 +609,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::IType(Orientation::HorizontalUp),
+                piece_type: PieceType::I(Orientation::HorizontalUp),
                 position: [
                     Coord { x: 3, y: 21 }, // d
                     Coord { x: 4, y: 21 }, // c
@@ -641,7 +641,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::IType(Orientation::VerticalLeft),
+                piece_type: PieceType::I(Orientation::VerticalLeft),
                 position: [
                     Coord { x: 4, y: 19 }, // d
                     Coord { x: 4, y: 20 }, // c
@@ -712,7 +712,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::JType,
+                piece_type: PieceType::J,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -742,7 +742,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::JType,
+                piece_type: PieceType::J,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -771,7 +771,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::JType,
+                piece_type: PieceType::J,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -811,7 +811,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::JType,
+                piece_type: PieceType::J,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -841,7 +841,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::JType,
+                piece_type: PieceType::J,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -871,7 +871,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::JType,
+                piece_type: PieceType::J,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -915,7 +915,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::LType,
+                piece_type: PieceType::L,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -946,7 +946,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::LType,
+                piece_type: PieceType::L,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -977,7 +977,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::LType,
+                piece_type: PieceType::L,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -1018,7 +1018,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::LType,
+                piece_type: PieceType::L,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -1049,7 +1049,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::LType,
+                piece_type: PieceType::L,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -1080,7 +1080,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::LType,
+                piece_type: PieceType::L,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -1125,7 +1125,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::SType,
+                piece_type: PieceType::S,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -1154,7 +1154,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::SType,
+                piece_type: PieceType::S,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -1183,7 +1183,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::SType,
+                piece_type: PieceType::S,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -1223,7 +1223,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::SType,
+                piece_type: PieceType::S,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -1252,7 +1252,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::SType,
+                piece_type: PieceType::S,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -1281,7 +1281,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::SType,
+                piece_type: PieceType::S,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -1324,7 +1324,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::ZType,
+                piece_type: PieceType::Z,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 21 }, // b
@@ -1353,7 +1353,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::ZType,
+                piece_type: PieceType::Z,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 19 }, // b
@@ -1382,7 +1382,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::ZType,
+                piece_type: PieceType::Z,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 3, y: 19 }, // b
@@ -1421,7 +1421,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::ZType,
+                piece_type: PieceType::Z,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 3, y: 19 }, // b
@@ -1450,7 +1450,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::ZType,
+                piece_type: PieceType::Z,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 19 }, // b
@@ -1479,7 +1479,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::ZType,
+                piece_type: PieceType::Z,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 21 }, // b
@@ -1521,7 +1521,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::TType,
+                piece_type: PieceType::T,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b
@@ -1550,7 +1550,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::TType,
+                piece_type: PieceType::T,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -1579,7 +1579,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::TType,
+                piece_type: PieceType::T,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -1618,7 +1618,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::TType,
+                piece_type: PieceType::T,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 19 }, // b
@@ -1647,7 +1647,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::TType,
+                piece_type: PieceType::T,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 5, y: 20 }, // b
@@ -1676,7 +1676,7 @@ mod tests {
 
         let expected_result =
             Piece {
-                piece_type: PieceType::TType,
+                piece_type: PieceType::T,
                 position: [
                     Coord { x: 4, y: 20 }, // a
                     Coord { x: 4, y: 21 }, // b

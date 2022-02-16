@@ -54,7 +54,7 @@ impl Board {
         //       verified to be within the borders of the game board
         coords.iter().any(|&c| { 
             if c.y < 0 {
-                return false
+                false
             } else {
                 self.content[c.y as usize][c.x as usize] != TetriminoType::EmptySpace
             }
@@ -76,13 +76,13 @@ impl Board {
     pub fn add_piece(&mut self, piece: &Piece) -> Range<usize> {
         let tet_type = 
             match piece.piece_type {
-                PieceType::IType(_) => TetriminoType::I,
-                PieceType::OType    => TetriminoType::O,
-                PieceType::JType    => TetriminoType::J,
-                PieceType::LType    => TetriminoType::L,
-                PieceType::SType    => TetriminoType::S,
-                PieceType::ZType    => TetriminoType::Z,
-                PieceType::TType    => TetriminoType::T,
+                PieceType::I(_) => TetriminoType::I,
+                PieceType::O    => TetriminoType::O,
+                PieceType::J    => TetriminoType::J,
+                PieceType::L    => TetriminoType::L,
+                PieceType::S    => TetriminoType::S,
+                PieceType::Z    => TetriminoType::Z,
+                PieceType::T    => TetriminoType::T,
             };
 
         // add pieces to the board
@@ -134,8 +134,7 @@ impl Board {
         }
 
         // clear completed lines.
-        let mut cleared_so_far = 0;
-        for y in completed_lines.iter() {
+        for (cleared_so_far, y) in completed_lines.iter().enumerate() {
             // exit if there are no more lines to clear
             // (indicated by -1)
             if *y == -1 {
@@ -143,8 +142,7 @@ impl Board {
             }
 
             // adjust the y coordinate for the lines already removed
-            let real_y = *y - cleared_so_far; 
-            cleared_so_far += 1;
+            let real_y = *y - cleared_so_far as i32; 
             // shift all the grid rows above this line down
             // the last grid row won't have another row to copy from, so ignore that row until
             // the end

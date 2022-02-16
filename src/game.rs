@@ -101,10 +101,7 @@ impl Game {
         for i in 0..tets.len() {
             let index = rng.next();
             if index != i {
-                // swap i and index
-                let temp = tets[i];
-                tets[i] = tets[index];
-                tets[index] = temp;
+                tets.swap(i, index);
             }
         }
 
@@ -216,9 +213,8 @@ impl Game {
 
     /// The main loop for the game.
     pub fn run_loop<R: Rng>(&mut self, input: &Input, rng: &mut R) -> GameState {
-        match self.state {
-            GameState::GameOver => return self.state,
-            _ => {},
+        if self.state == GameState::GameOver {
+            return self.state
         }
 
         let valid_piece_location = |p: &Piece| { 
@@ -230,7 +226,7 @@ impl Game {
         self.render_info = Default::default();
 
         // save a copy of the piece's current position
-        let previous_piece = self.current_piece.clone();
+        let previous_piece = self.current_piece;
 
         // -------------------------
         //    HORIZONTAL MOVEMENT
@@ -239,7 +235,7 @@ impl Game {
             self.translation_cooldown_counter -= 1;
         } else { // counter is u32, so hitting this branch means it's equal to zero
             let translated_piece = Game::handle_horizontal_input(
-                                               &input,
+                                               input,
                                                &self.current_piece,
                                                valid_piece_location);
 
@@ -260,7 +256,7 @@ impl Game {
             self.rotation_cooldown_counter -= 1;
         } else { // counter is u32, so hitting this branch means it's equal to zero
             let rotated_piece = Game::handle_rotation_input(
-                                            &input,
+                                            input,
                                             &self.current_piece,
                                             valid_piece_location);
 
@@ -343,10 +339,7 @@ impl Game {
                     for i in 0..self.pieces.len() {
                         let index = rng.next();
                         if index != i {
-                            // swap i and index
-                            let temp = self.pieces[i];
-                            self.pieces[i] = self.pieces[index];
-                            self.pieces[index] = temp;
+                            self.pieces.swap(i, index);
                         }
                     }
                     // reset the index
@@ -364,7 +357,7 @@ impl Game {
                                  any(|(&a, &b)| a != b);
         self.render_info.previous_piece_pos = 
             if piece_has_moved {
-                Some(previous_piece.position.clone())
+                Some(previous_piece.position)
             } else {
                 None
             };
@@ -449,13 +442,13 @@ impl Game {
         // draw the active (falling) piece
         let tet_type =
             match self.current_piece.piece_type {
-                PieceType::IType(_) => TetriminoType::I,
-                PieceType::OType    => TetriminoType::O,
-                PieceType::JType    => TetriminoType::J,
-                PieceType::LType    => TetriminoType::L,
-                PieceType::SType    => TetriminoType::S,
-                PieceType::ZType    => TetriminoType::Z,
-                PieceType::TType    => TetriminoType::T,
+                PieceType::I(_) => TetriminoType::I,
+                PieceType::O    => TetriminoType::O,
+                PieceType::J    => TetriminoType::J,
+                PieceType::L    => TetriminoType::L,
+                PieceType::S    => TetriminoType::S,
+                PieceType::Z    => TetriminoType::Z,
+                PieceType::T    => TetriminoType::T,
             };
         for c in self.current_piece.position.iter() {
             let x = c.x;
@@ -483,13 +476,13 @@ impl Game {
         // draw the active (falling) piece
         let tet_type =
             match self.current_piece.piece_type {
-                PieceType::IType(_) => TetriminoType::I,
-                PieceType::OType    => TetriminoType::O,
-                PieceType::JType    => TetriminoType::J,
-                PieceType::LType    => TetriminoType::L,
-                PieceType::SType    => TetriminoType::S,
-                PieceType::ZType    => TetriminoType::Z,
-                PieceType::TType    => TetriminoType::T,
+                PieceType::I(_) => TetriminoType::I,
+                PieceType::O    => TetriminoType::O,
+                PieceType::J    => TetriminoType::J,
+                PieceType::L    => TetriminoType::L,
+                PieceType::S    => TetriminoType::S,
+                PieceType::Z    => TetriminoType::Z,
+                PieceType::T    => TetriminoType::T,
             };
         for c in self.current_piece.position.iter() {
             let x = c.x;
